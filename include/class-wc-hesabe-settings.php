@@ -2,8 +2,6 @@
 
 class WC_Hesabe extends WC_Payment_Gateway
 {
-
-
     public function __construct()
     {
         // construct form //
@@ -75,36 +73,33 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'default' => __('The best payment gateway provider in Kuwait for e-payment through credit card & debit card')),
 
             'merchantcode' => array(
-                'title' => __('Merchant Code'),
+                'title' => __('Merchant Code:'),
                 'type' => 'text',
-                'description' => __('This is Merchant Code."')),
+                'description' => __('This is Merchant Code.')),
 
             'accessCode' => array(
-                'title' => __('Access Code'),
+                'title' => __('Access Code:'),
                 'type' => 'text',
                 'description' => __('Access Code'),
             ),
             'secretKey' => array(
-                'title' => __('Secret Key'),
+                'title' => __('Secret Key:'),
                 'type' => 'text',
                 'description' => __('Secret Key'),
             ),
 
             'ivKey' => array(
-                'title' => __('IV'),
+                'title' => __('IV:'),
                 'type' => 'text',
                 'description' => __('IV of Secret Key'),
             ),
             'user1' => array(
-                'title' => __('Variable'),
+                'title' => __('Variable:'),
                 'type' => 'text',
                 'description' => __('Custom return value'),
             )
         );
-
-
     }
-
 
     /**
      * Admin Panel Options
@@ -125,11 +120,6 @@ class WC_Hesabe extends WC_Payment_Gateway
      **/
     function payment_fields()
     {
-        //echo 'Knet <input type="radio" name="paymentOption" value="1" required/>';
-
-        //echo "<br>";
-        //echo 'Mpgs <input type="radio" name="paymentOption" value="2" required/>';
-
         if ($this->description) echo wpautop(wptexturize($this->description));
     }
 
@@ -283,11 +273,8 @@ class WC_Hesabe extends WC_Payment_Gateway
             //echo 'Curl error: ' . curl_error($curl);exit;
         }
         curl_close($curl); // close curl object
-
         list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
-
         $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
-
         $decode_response = json_decode($decrypted_post_response);
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
             echo "We can not complete order at this moment";
