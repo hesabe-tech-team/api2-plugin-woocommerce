@@ -1,13 +1,12 @@
 <?php
+
 class WC_Hesabe_Knet extends WC_Payment_Gateway
 {
 
 
-
     public function __construct()
     {
-        // construct form //
-        // Go wild in here
+        // General configuration set
         $this->id = 'hesabe_knet';
         $this->method_title = __('Knet Online Payment');
         $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.png';
@@ -16,18 +15,18 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         $this->init_settings();
         $this->title = $this->settings['title'];
         $this->description = $this->settings['description'];
-        $mainSettings = get_option( 'woocommerce_hesabe_settings' );
-        $this->merchantcode = ( ! empty( $mainSettings['merchantcode'] ) ) ? $mainSettings['merchantcode'] : '';
-        $this->user1 = ( ! empty( $mainSettings['user1'] ) ) ? $mainSettings['user1'] : '';
-        $this->secretKey = ( ! empty( $mainSettings['secretKey'] ) ) ? $mainSettings['secretKey'] : '';
-        $this->ivKey = ( ! empty( $mainSettings['ivKey'] ) ) ? $mainSettings['ivKey'] : '';
-        $this->accessCode = ( ! empty( $mainSettings['accessCode'] ) ) ? $mainSettings['accessCode'] : '';
-        $this->sandbox = ( ! empty( $mainSettings['sandbox'] ) && 'yes' === $mainSettings['sandbox'] ) ? true : false;
+        $mainSettings = get_option('woocommerce_hesabe_settings');
+        $this->merchantcode = (!empty($mainSettings['merchantcode'])) ? $mainSettings['merchantcode'] : '';
+        $this->user1 = (!empty($mainSettings['user1'])) ? $mainSettings['user1'] : '';
+        $this->secretKey = (!empty($mainSettings['secretKey'])) ? $mainSettings['secretKey'] : '';
+        $this->ivKey = (!empty($mainSettings['ivKey'])) ? $mainSettings['ivKey'] : '';
+        $this->accessCode = (!empty($mainSettings['accessCode'])) ? $mainSettings['accessCode'] : '';
+        $this->sandbox = (!empty($mainSettings['sandbox']) && 'yes' === $mainSettings['sandbox']) ? true : false;
 
         if ($this->sandbox) {
-            $this->apiUrl = 'http://payment-api.eu-central-1.elasticbeanstalk.com';
+            $this->apiUrl = WC_HESABE_TEST_URL;
         } else {
-            $this->apiUrl = 'liveUrl';
+            $this->apiUrl = WC_HESABE_LIVE_URL;
         }
 
         $this->notify_url = home_url('/wc-api/wc_hesabe');
@@ -38,7 +37,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         } else {
             add_action('woocommerce_update_options_payment_gateways', array(&$this, 'process_admin_options'));
         }
-        add_action( 'woocommerce_receipt_' . $this->id, array( $this, 'receipt_page' ) );
+        add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
     }
 
 
@@ -132,20 +131,20 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             "merchantCode" => $this->merchantcode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
-            "paymentType" =>1,
+            "paymentType" => 1,
             "version" => '2.0',
             "variable1" => $this->user1,
             "variable2" => $order_id
         );
-        $post_string=json_encode($post_values);
+        $post_string = json_encode($post_values);
 
-        $encrypted_post_string=WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
+        $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
-        $encrypted_post_string= 'data='.$encrypted_post_string;
+        $encrypted_post_string = 'data=' . $encrypted_post_string;
 
         $header = array();
-        $header[] = 'accessCode: '.$this->accessCode;
-        $checkOutUrl = $this->apiUrl.'/api/checkout';
+        $header[] = 'accessCode: ' . $this->accessCode;
+        $checkOutUrl = $this->apiUrl . '/api/checkout';
 
         $curl = curl_init($checkOutUrl);
 
@@ -153,8 +152,8 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             //curl_setopt($curl, CURLOPT_PORT, 443);
         }
 
-        curl_setopt($curl, CURLOPT_HEADER,1);
-        curl_setopt($curl, CURLOPT_HTTPHEADER,$header);
+        curl_setopt($curl, CURLOPT_HEADER, 1);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_FORBID_REUSE, 1);
@@ -164,22 +163,23 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
         $post_response = curl_exec($curl);
-        if($post_response === false)
-        {
+        if ($post_response === false) {
             //echo 'Curl error: ' . curl_error($curl);exit;
         }
-        curl_close ($curl); // close curl object
+        curl_close($curl); // close curl object
 
         list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
 
-        $decrypted_post_response=WC_Hesabe_Crypt::decrypt($responsebody,$this->secretKey,$this->ivKey);
+        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
 
-        $decode_response=json_decode($decrypted_post_response);
-        if($decode_response->status !=1 || !(isset($decode_response->response->data))) {
-            echo "We can not take order at this moment";exit;
+        $decode_response = json_decode($decrypted_post_response);
+        if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
+            echo "We can not complete order at this moment";
+            exit;
         }
         $paymentData = $decode_response->response->data;
-        header('Location:'.$this->apiUrl.'/api/payment?data='.$paymentData);exit;
+        header('Location:' . $this->apiUrl . '/api/payment?data=' . $paymentData);
+        exit;
     }
 
 }

@@ -20,6 +20,13 @@ function woocommerce_hesabe_init()
     if (!class_exists('WC_Payment_Gateway')) return;
 
     /**
+     * Required minimums and constants
+     */
+    define( 'WC_HESABE_VERSION', '2.0' );
+    define( 'WC_HESABE_TEST_URL', 'http://payment-api.eu-central-1.elasticbeanstalk.com' );
+    define( 'WC_HESABE_LIVE_URL', 'LiveUrl' );
+
+    /**
      * Gateway class
      */
     require_once dirname(__FILE__) . '/include/class-wc-hesabe-crypt.php';
@@ -52,6 +59,7 @@ function woocommerce_hesabe_init()
             unset($available_gateways['hesabe']);
         } else {
             unset($available_gateways['hesabe_mpgs']);
+            unset($available_gateways['hesabe_knet']);
         }
         return $available_gateways;
     }
