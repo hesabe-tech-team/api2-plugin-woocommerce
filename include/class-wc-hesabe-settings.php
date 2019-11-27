@@ -1,40 +1,47 @@
 <?php
 
-class WC_Hesabe_Mpgs extends WC_Payment_Gateway
+class WC_Hesabe extends WC_Payment_Gateway
 {
+
+
     public function __construct()
     {
-        // General configuration set
-        $this->id = 'hesabe_mpgs';
-        $this->method_title = __('MPGS Online Payment');
+        // construct form //
+        // Go wild in here
+        $this->id = 'hesabe';
+        $this->method_title = __('Hesabe Online Payment');
         $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
         $this->title = $this->settings['title'];
         $this->description = $this->settings['description'];
-        $mainSettings = get_option('woocommerce_hesabe_settings');
-        $this->merchantcode = (!empty($mainSettings['merchantcode'])) ? $mainSettings['merchantcode'] : '';
-        $this->user1 = (!empty($mainSettings['user1'])) ? $mainSettings['user1'] : '';
-        $this->secretKey = (!empty($mainSettings['secretKey'])) ? $mainSettings['secretKey'] : '';
-        $this->ivKey = (!empty($mainSettings['ivKey'])) ? $mainSettings['ivKey'] : '';
-        $this->accessCode = (!empty($mainSettings['accessCode'])) ? $mainSettings['accessCode'] : '';
-        $this->sandbox = (!empty($mainSettings['sandbox']) && 'yes' === $mainSettings['sandbox']) ? true : false;
+        $this->merchantcode = $this->settings['merchantcode'];
 
-        if ($this->sandbox) {
+        $this->user1 = (!empty($this->settings['user1'])) ? $this->settings['user1'] : '';
+        $this->sandbox = $this->settings['sandbox'];
+        $this->secretKey = $this->settings['secretKey'];
+        $this->ivKey = $this->settings['ivKey'];
+        $this->accessCode = $this->settings['accessCode'];
+
+        if ($this->sandbox == 'yes') {
             $this->apiUrl = WC_HESABE_TEST_URL;
         } else {
             $this->apiUrl = WC_HESABE_LIVE_URL;
         }
-
         $this->notify_url = home_url('/wc-api/wc_hesabe');
 
+        $this->msg['message'] = "";
+        $this->msg['class'] = "";
+
+        add_action('woocommerce_api_wc_hesabe', array($this, 'check_hesabe_response'));
+        add_action('valid-hesabe-request', array($this, 'successful_request'));
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         } else {
             add_action('woocommerce_update_options_payment_gateways', array(&$this, 'process_admin_options'));
         }
-        add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
+        add_action('woocommerce_receipt_hesabe', array($this, 'receipt_page'));
     }
 
 
@@ -48,18 +55,53 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
                 'label' => __('Enable Hesabe Online Payment Module.'),
                 'default' => 'no'),
 
+
+            'sandbox' => array(
+                'title' => __('Enable Demo?'),
+                'type' => 'checkbox',
+                'label' => __('Enable Demo Hesabe OnlinePayment.'),
+                'default' => 'no'),
+
             'title' => array(
                 'title' => __('Title:'),
                 'type' => 'text',
                 'description' => __('This controls the title which the user sees during checkout.'),
-                'default' => __('MPGS Online Payment via Hesabe')),
+                'default' => __('Hesabe Configuration')),
 
             'description' => array(
                 'title' => __('Description:'),
                 'type' => 'textarea',
                 'description' => __('This controls the description which the user sees during checkout.'),
                 'default' => __('The best payment gateway provider in Kuwait for e-payment through credit card & debit card')),
+
+            'merchantcode' => array(
+                'title' => __('Merchant Code'),
+                'type' => 'text',
+                'description' => __('This is Merchant Code."')),
+
+            'accessCode' => array(
+                'title' => __('Access Code'),
+                'type' => 'text',
+                'description' => __('Access Code'),
+            ),
+            'secretKey' => array(
+                'title' => __('Secret Key'),
+                'type' => 'text',
+                'description' => __('Secret Key'),
+            ),
+
+            'ivKey' => array(
+                'title' => __('IV'),
+                'type' => 'text',
+                'description' => __('IV of Secret Key'),
+            ),
+            'user1' => array(
+                'title' => __('Variable'),
+                'type' => 'text',
+                'description' => __('Custom return value'),
+            )
         );
+
 
     }
 
@@ -83,6 +125,11 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
      **/
     function payment_fields()
     {
+        //echo 'Knet <input type="radio" name="paymentOption" value="1" required/>';
+
+        //echo "<br>";
+        //echo 'Mpgs <input type="radio" name="paymentOption" value="2" required/>';
+
         if ($this->description) echo wpautop(wptexturize($this->description));
     }
 
@@ -91,7 +138,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
      **/
     function receipt_page($order)
     {
-        echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
+        echo '<p>' . __('Thank you for your order, please click the button below to pay with hesabe.') . '</p>';
         echo $this->generate_hesabe_form($order);
     }
 
@@ -110,12 +157,80 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         );
     }
 
+
+    /**
+     * Check for valid hesabe server callback // response processing //
+     **/
+    function check_hesabe_response()
+    {
+        global $woocommerce;
+        $msg['class'] = 'error';
+        $msg['message'] = "Thank you for shopping with us. However, the transaction has been declined.";
+        $responseData = $_REQUEST['data'];
+        $decryptedResponse = WC_Hesabe_Crypt::decrypt($responseData, $this->secretKey, $this->ivKey);
+        $jsonDecode = json_decode($decryptedResponse);
+        if (isset($jsonDecode->status) && $jsonDecode->status == 1) {
+            $orderInfo = $jsonDecode->response;
+            $order_id = $orderInfo->variable2;
+            if ($order_id != '') {
+                $authorisedTransaction = false;
+                try {
+                    if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
+                        $order = new WC_Order($order_id);
+                    } else {
+                        $order = new woocommerce_order($order_id);
+                    }
+                    $orderStatus = $orderInfo->resultCode;
+                    if ($orderStatus == "CAPTURED") {
+                        $authorisedTransaction = true;
+                        $msg['message'] = "Thank you for shopping with us. Your account has been charged and your transaction is successful. ";
+                        $msg['class'] = 'success';
+                        if ($order->status != 'processing') {
+                            $order->payment_complete();
+                            $order->add_order_note('Hesabe  payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
+                            $woocommerce->cart->empty_cart();
+
+                        }
+                    }
+                    if ($authorisedTransaction == false) {
+                        $order->update_status('failed');
+                        $order->add_order_note('Hesabe  payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
+                        $order->add_order_note($this->msg['message']);
+                    }
+                } catch (Exception $e) {
+                    $msg['class'] = 'error';
+                    $msg['message'] = "Thank you for shopping with us. However, the transaction has been declined.";
+
+                }
+            }
+        }
+
+        if (function_exists('wc_add_notice')) {
+            wc_add_notice($msg['message'], $msg['class']);
+
+        } else {
+            if ($msg['class'] == 'success') {
+                $woocommerce->add_message($msg['message']);
+            } else {
+                $woocommerce->add_error($msg['message']);
+
+            }
+            $woocommerce->set_messages();
+        }
+        //$redirect_url = get_permalink(woocommerce_get_page_id('myaccount'));
+        $redirect_url = $this->get_return_url($order);
+        wp_redirect($redirect_url);
+        exit;
+    }
+
+
     /**
      * Generate hesabe button link
      **/
     public function generate_hesabe_form($order_id)
     {
         global $woocommerce;
+
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
@@ -124,15 +239,17 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
 
+
         $post_values = array(
             "merchantCode" => $this->merchantcode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
-            "paymentType" => 2,
+            "paymentType" => 1,
             "version" => '2.0',
             "variable1" => $this->user1,
             "variable2" => $order_id
         );
+
         $post_string = json_encode($post_values);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
@@ -140,12 +257,14 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $encrypted_post_string = 'data=' . $encrypted_post_string;
 
         $header = array();
-        $header[] = 'accessCode: ' . $this->accessCode;
-        $checkOutUrl = $this->apiUrl . '/api/checkout';
 
+
+        $header[] = 'accessCode: ' . $this->accessCode;
+        //api/checkout
+        $checkOutUrl = $this->apiUrl . '/api/checkout';
         $curl = curl_init($checkOutUrl);
 
-        if (!$this->sandbox) {
+        if ($this->sandbox == 'yes') {
             //curl_setopt($curl, CURLOPT_PORT, 443);
         }
 
@@ -178,4 +297,6 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         header('Location:' . $this->apiUrl . '/api/payment?data=' . $paymentData);
         exit;
     }
+
 }
+
