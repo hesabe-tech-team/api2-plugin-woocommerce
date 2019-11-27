@@ -1,6 +1,6 @@
 === Plugin Name ===
 
-Contributors: Sijo Shrishti Info Solutions Pvt Ltd
+Contributors: Heasabe Payment Collections - Hesabe Team
 
 
 
