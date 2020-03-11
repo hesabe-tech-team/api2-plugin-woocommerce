@@ -131,10 +131,11 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             "merchantCode" => $this->merchantcode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
+            "failureUrl" => $this->notify_url,
             "paymentType" => 1,
             "version" => '2.0',
-            "variable1" => $this->user1,
-            "variable2" => $order_id
+            "variable2" => $this->user1,
+            "variable1" => $order_id
         );
         $post_string = json_encode($post_values);
 
@@ -144,7 +145,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
 
         $header = array();
         $header[] = 'accessCode: ' . $this->accessCode;
-        $checkOutUrl = $this->apiUrl . '/api/checkout';
+        $checkOutUrl = $this->apiUrl . '/checkout';
 
         $curl = curl_init($checkOutUrl);
 
@@ -178,7 +179,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             exit;
         }
         $paymentData = $decode_response->response->data;
-        header('Location:' . $this->apiUrl . '/api/payment?data=' . $paymentData);
+        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
     }
 
