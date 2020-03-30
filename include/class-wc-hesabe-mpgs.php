@@ -131,8 +131,9 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "failureUrl" => $this->notify_url,
             "paymentType" => 2,
             "version" => '2.0',
-            "variable2" => $this->user1,
-            "variable1" => $order_id
+            "orderReferenceNumber" => $order_id,
+            "variable1" => $this->user1,
+            "variable2" => $order_id
         );
         $post_string = json_encode($post_values);
 
