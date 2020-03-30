@@ -162,7 +162,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 
         if (isset($jsonDecode->status) && $jsonDecode->status == true) {
             $orderInfo = $jsonDecode->response;
-            $order_id = $orderInfo->variable1;
+            $order_id = $orderInfo->variable2;
             if ($order_id != '') {
                 $authorisedTransaction = false;
                 try {
