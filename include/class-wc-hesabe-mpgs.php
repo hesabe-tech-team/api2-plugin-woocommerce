@@ -7,7 +7,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         // General configuration set
         $this->id = 'hesabe_mpgs';
         $this->method_title = __('MPGS Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/mpgs.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -128,8 +128,10 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "merchantCode" => $this->merchantcode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
+            "failureUrl" => $this->notify_url,
             "paymentType" => 2,
             "version" => '2.0',
+            "orderReferenceNumber" => $order_id,
             "variable1" => $this->user1,
             "variable2" => $order_id
         );
@@ -141,7 +143,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
         $header = array();
         $header[] = 'accessCode: ' . $this->accessCode;
-        $checkOutUrl = $this->apiUrl . '/api/checkout';
+        $checkOutUrl = $this->apiUrl . '/checkout';
 
         $curl = curl_init($checkOutUrl);
 
@@ -170,12 +172,13 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
 
         $decode_response = json_decode($decrypted_post_response);
+
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
             echo "We can not complete order at this moment";
             exit;
         }
         $paymentData = $decode_response->response->data;
-        header('Location:' . $this->apiUrl . '/api/payment?data=' . $paymentData);
+        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
     }
 }

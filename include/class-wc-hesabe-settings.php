@@ -159,7 +159,8 @@ class WC_Hesabe extends WC_Payment_Gateway
         $responseData = $_REQUEST['data'];
         $decryptedResponse = WC_Hesabe_Crypt::decrypt($responseData, $this->secretKey, $this->ivKey);
         $jsonDecode = json_decode($decryptedResponse);
-        if (isset($jsonDecode->status) && $jsonDecode->status == 1) {
+
+        if (isset($jsonDecode->status) && $jsonDecode->status == true) {
             $orderInfo = $jsonDecode->response;
             $order_id = $orderInfo->variable2;
             if ($order_id != '') {
@@ -234,8 +235,10 @@ class WC_Hesabe extends WC_Payment_Gateway
             "merchantCode" => $this->merchantcode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
+            "failureUrl" => $this->notify_url,
             "paymentType" => 1,
             "version" => '2.0',
+            "orderReferenceNumber" => $order_id,
             "variable1" => $this->user1,
             "variable2" => $order_id
         );
@@ -251,7 +254,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 
         $header[] = 'accessCode: ' . $this->accessCode;
         //api/checkout
-        $checkOutUrl = $this->apiUrl . '/api/checkout';
+        $checkOutUrl = $this->apiUrl . '/checkout';
         $curl = curl_init($checkOutUrl);
 
         if ($this->sandbox == 'yes') {
@@ -281,7 +284,7 @@ class WC_Hesabe extends WC_Payment_Gateway
             exit;
         }
         $paymentData = $decode_response->response->data;
-        header('Location:' . $this->apiUrl . '/api/payment?data=' . $paymentData);
+        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
     }
 
