@@ -143,7 +143,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         global $woocommerce;
         $authorisedTransaction = false;
         $msg['class'] = 'error';
-        $msg['message'] = "Thank you for shopping with us. However, the transaction has been declined.";
+        $msg['message'] = "This transaction has been declined. Please attempt your purchase again.";
         $responseData = $_REQUEST['data'];
         $decryptedResponse = WC_Hesabe_Crypt::decrypt($responseData, $this->secretKey, $this->ivKey);
         $jsonDecode = json_decode($decryptedResponse);
@@ -191,7 +191,12 @@ class WC_Hesabe extends WC_Payment_Gateway
             }
             $woocommerce->set_messages();
         }
-        $redirect_url = $this->get_return_url($order);
+
+        if(!isset($order)){
+            $redirect_url = home_url('/checkout');
+        } else {
+            $redirect_url = $this->get_return_url($order);
+        }
         wp_redirect($redirect_url);
         exit;
     }
