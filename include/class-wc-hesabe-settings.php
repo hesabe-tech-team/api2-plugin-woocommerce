@@ -92,11 +92,6 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'title' => __('IV:'),
                 'type' => 'text',
                 'description' => __('IV of Secret Key'),
-            ),
-            'user1' => array(
-                'title' => __('Variable:'),
-                'type' => 'text',
-                'description' => __('Custom return value'),
             )
         );
     }
@@ -108,7 +103,7 @@ class WC_Hesabe extends WC_Payment_Gateway
     public function admin_options()
     {
         echo '<h3>' . __('Hesabe Payment Gateway') . '</h3>';
-        echo '<p>' . __('Kuwait online payment solutions for all your transactions by hesabe') . '</p>';
+        echo '<p>' . __('Kuwait online payment solutions for all your transactions by Hesabe') . '</p>';
         echo '<table class="form-table">';
         $this->generate_settings_html();
         echo '</table>';
@@ -123,24 +118,16 @@ class WC_Hesabe extends WC_Payment_Gateway
         if ($this->description) echo wpautop(wptexturize($this->description));
     }
 
-    /**
-     * Receipt Page
-     **/
-    function receipt_page($order)
-    {
-        echo '<p>' . __('Thank you for your order, please click the button below to pay with hesabe.') . '</p>';
-        echo $this->generate_hesabe_form($order);
-    }
 
     /**
      * Process the payment and return the result
      **/
-    function process_payment($order_id)
+    function process_payment($orderId)
     {
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-            $order = new WC_Order($order_id);
+            $order = new WC_Order($orderId);
         } else {
-            $order = new woocommerce_order($order_id);
+            $order = new woocommerce_order($orderId);
         }
         return array('result' => 'success', 'redirect' => add_query_arg('order',
             $order->id, add_query_arg('key', $order->order_key, $order->get_checkout_payment_url(true)))
@@ -154,24 +141,24 @@ class WC_Hesabe extends WC_Payment_Gateway
     function check_hesabe_response()
     {
         global $woocommerce;
+        $authorisedTransaction = false;
         $msg['class'] = 'error';
         $msg['message'] = "Thank you for shopping with us. However, the transaction has been declined.";
         $responseData = $_REQUEST['data'];
         $decryptedResponse = WC_Hesabe_Crypt::decrypt($responseData, $this->secretKey, $this->ivKey);
         $jsonDecode = json_decode($decryptedResponse);
-
-        if (isset($jsonDecode->status) && $jsonDecode->status == true) {
+        if (isset($jsonDecode->response)) {
             $orderInfo = $jsonDecode->response;
-            $order_id = $orderInfo->variable2;
-            if ($order_id != '') {
-                $authorisedTransaction = false;
+            $orderId = $orderInfo->variable2;
+            if ($orderId != '') {
                 try {
                     if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-                        $order = new WC_Order($order_id);
+                        $order = new WC_Order($orderId);
                     } else {
-                        $order = new woocommerce_order($order_id);
+                        $order = new woocommerce_order($orderId);
                     }
                     $orderStatus = $orderInfo->resultCode;
+                    $order->add_order_note($orderStatus);
                     if ($orderStatus == "CAPTURED") {
                         $authorisedTransaction = true;
                         $msg['message'] = "Thank you for shopping with us. Your account has been charged and your transaction is successful. ";
@@ -180,113 +167,33 @@ class WC_Hesabe extends WC_Payment_Gateway
                             $order->payment_complete();
                             $order->add_order_note('Hesabe  payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
                             $woocommerce->cart->empty_cart();
-
                         }
                     }
                     if ($authorisedTransaction == false) {
                         $order->update_status('failed');
                         $order->add_order_note('Hesabe  payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
-                        $order->add_order_note($this->msg['message']);
+                        $order->add_order_note($msg['message']);
                     }
                 } catch (Exception $e) {
                     $msg['class'] = 'error';
                     $msg['message'] = "Thank you for shopping with us. However, the transaction has been declined.";
-
                 }
             }
         }
 
         if (function_exists('wc_add_notice')) {
             wc_add_notice($msg['message'], $msg['class']);
-
         } else {
             if ($msg['class'] == 'success') {
                 $woocommerce->add_message($msg['message']);
             } else {
                 $woocommerce->add_error($msg['message']);
-
             }
             $woocommerce->set_messages();
         }
-        //$redirect_url = get_permalink(woocommerce_get_page_id('myaccount'));
         $redirect_url = $this->get_return_url($order);
         wp_redirect($redirect_url);
         exit;
     }
-
-
-    /**
-     * Generate hesabe button link
-     **/
-    public function generate_hesabe_form($order_id)
-    {
-        global $woocommerce;
-
-        if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-            $order = new WC_Order($order_id);
-        } else {
-            $order = new woocommerce_order($order_id);
-        }
-
-        $orderAmount = number_format((float)$order->order_total, 3, '.', '');
-
-
-        $post_values = array(
-            "merchantCode" => $this->merchantcode,
-            "amount" => $orderAmount,
-            "responseUrl" => $this->notify_url,
-            "failureUrl" => $this->notify_url,
-            "paymentType" => 1,
-            "version" => '2.0',
-            "orderReferenceNumber" => $order_id,
-            "variable1" => $this->user1,
-            "variable2" => $order_id
-        );
-
-        $post_string = json_encode($post_values);
-
-        $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
-
-        $encrypted_post_string = 'data=' . $encrypted_post_string;
-
-        $header = array();
-
-
-        $header[] = 'accessCode: ' . $this->accessCode;
-        //api/checkout
-        $checkOutUrl = $this->apiUrl . '/checkout';
-        $curl = curl_init($checkOutUrl);
-
-        if ($this->sandbox == 'yes') {
-            //curl_setopt($curl, CURLOPT_PORT, 443);
-        }
-
-        curl_setopt($curl, CURLOPT_HEADER, 1);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl, CURLOPT_FORBID_REUSE, 1);
-        curl_setopt($curl, CURLOPT_FRESH_CONNECT, 1);
-        curl_setopt($curl, CURLOPT_POST, 1);
-        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 12);
-        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
-        $post_response = curl_exec($curl);
-        if ($post_response === false) {
-            //echo 'Curl error: ' . curl_error($curl);exit;
-        }
-        curl_close($curl); // close curl object
-        list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
-        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
-        $decode_response = json_decode($decrypted_post_response);
-        if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
-            echo "We can not complete order at this moment";
-            exit;
-        }
-        $paymentData = $decode_response->response->data;
-        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
-        exit;
-    }
-
 }
 
