@@ -29,14 +29,16 @@ function woocommerce_hesabe_init()
     /**
      * Gateway class
      */
-    require_once dirname(__FILE__) . '/include/class-wc-hesabe-crypt.php';
-    require_once dirname(__FILE__) . '/include/class-wc-hesabe-settings.php';
-    require_once dirname(__FILE__) . '/include/class-wc-hesabe-knet.php';
-    require_once dirname(__FILE__) . '/include/class-wc-hesabe-mpgs.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-crypt.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-settings.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-knet.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-mpgs.php';
 
     /**
      * Add the Gateway to WooCommerce
-     **/
+     * @param $methods
+     * @return array
+     */
     function woocommerce_add_hesabe_gateway($methods)
     {
         $methods[] = 'WC_Hesabe';
@@ -50,11 +52,15 @@ function woocommerce_hesabe_init()
     /**
      * Manage hesabe payment gateway for user interface
      */
+
     add_filter('woocommerce_available_payment_gateways', 'hesabe_setting_enable_manager');
 
+    /** Hesabe Setting Enable Manager
+     * @param $available_gateways
+     * @return mixed
+     */
     function hesabe_setting_enable_manager($available_gateways)
     {
-        global $woocommerce;
         if (isset($available_gateways['hesabe'])) {
             unset($available_gateways['hesabe']);
         } else {

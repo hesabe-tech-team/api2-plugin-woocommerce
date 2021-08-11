@@ -1,21 +1,34 @@
 # Introduction 
-WooCommerce Hesabe API 2.0
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+
+Contributors: Heasabe Payment Collections - Hesabe Team
+
+#### WooCommerce Hesabe API 2.0
+
+Allows you to use Hesabe payment gateway with the WooCommerce plugin.
+
+``` This is Hesabe payment gateway for WooCommerce. Allows you to use Hesabe payment gateway with the WooCommerce plugin. It is strongly recommended for Kuwait payment. ```
+
 
 # Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+1. Ensure you have latest version of WooCommerce plugin installed
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+2. Unzip and upload contents of the plugin to your /wp-content/plugins/ directory
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+3. Activate the plugin through the 'Plugins' menu in WordPress
+
+
+== Screenshots ==
+
+1. WooCommerce payment gateway setting page
+
+2. Hesabe setting page
+
+3. Hesabe Payment gateway option at the checkout page
+
+
+== Verified Versions ==
+
+ - wordpress-5.8
+
+ - woocommerce.5.5.2

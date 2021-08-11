@@ -30,15 +30,15 @@ class WC_Hesabe_Crypt
 
     private static function pkcs5_pad($text)
     {
-        $blocksize = 32;
-        $pad = $blocksize - (strlen($text) % $blocksize);
+        $blockSize = 32;
+        $pad = $blockSize - (strlen($text) % $blockSize);
         return $text.str_repeat(chr($pad), $pad);
     }
 
     private static function byteArray2Hex($byteArray)
     {
         $chars = array_map("chr", $byteArray);
-        $bin = join($chars);
+        $bin = implode($chars);
         return bin2hex($bin);
     }
 
@@ -51,7 +51,6 @@ class WC_Hesabe_Crypt
         }
         $code = self::hex2ByteArray(trim($code));
         $code = self::byteArray2String($code);
-        $iv = $key;
         $code = base64_encode($code);
         $decrypted = openssl_decrypt($code, 'AES-256-CBC', $key, OPENSSL_ZERO_PADDING, $ivKey);
         return self::pkcs5_unpad($decrypted);
