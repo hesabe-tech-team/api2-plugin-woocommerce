@@ -7,7 +7,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         // General configuration set
         $this->id = 'hesabe_mpgs';
         $this->method_title = __('MPGS Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/mpgs.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mpgs.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -88,7 +88,8 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
     /**
      * Receipt Page
-     **/
+     * @param $order
+     */
     function receipt_page($order)
     {
         echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
@@ -97,7 +98,9 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
     /**
      * Process the payment and return the result
-     **/
+     * @param $order_id
+     * @return array
+     */
     function process_payment($order_id)
     {
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -112,10 +115,10 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
     /**
      * Generate hesabe button link
-     **/
+     * @param $order_id
+     */
     public function generate_hesabe_form($order_id)
     {
-        global $woocommerce;
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
@@ -146,10 +149,6 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $checkOutUrl = $this->apiUrl . '/checkout';
 
         $curl = curl_init($checkOutUrl);
-
-        if (!$this->sandbox) {
-            //curl_setopt($curl, CURLOPT_PORT, 443);
-        }
 
         curl_setopt($curl, CURLOPT_HEADER, 1);
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);

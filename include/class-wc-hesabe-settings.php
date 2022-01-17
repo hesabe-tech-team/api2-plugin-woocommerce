@@ -8,7 +8,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         // Go wild in here
         $this->id = 'hesabe';
         $this->method_title = __('Hesabe Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/logo.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();

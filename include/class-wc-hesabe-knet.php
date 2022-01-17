@@ -9,7 +9,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         // General configuration set
         $this->id = 'hesabe_knet';
         $this->method_title = __('Knet Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/logo.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -100,7 +100,9 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
 
     /**
      * Process the payment and return the result
-     **/
+     * @param $order_id
+     * @return array
+     */
     function process_payment($order_id)
     {
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -115,10 +117,11 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
 
     /**
      * Generate hesabe button link
-     **/
+     * @param $order_id
+     */
     public function generate_hesabe_form($order_id)
     {
-        global $woocommerce;
+
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
