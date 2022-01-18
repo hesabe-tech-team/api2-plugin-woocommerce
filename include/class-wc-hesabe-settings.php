@@ -14,9 +14,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         $this->init_settings();
         $this->title = $this->settings['title'];
         $this->description = $this->settings['description'];
-        $this->merchantcode = $this->settings['merchantcode'];
-
-        $this->user1 = (!empty($this->settings['user1'])) ? $this->settings['user1'] : '';
+        $this->merchantCode = $this->settings['merchantCode'];
         $this->sandbox = $this->settings['sandbox'];
         $this->secretKey = $this->settings['secretKey'];
         $this->ivKey = $this->settings['ivKey'];
@@ -53,11 +51,16 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'label' => __('Enable Hesabe Online Payment Module.'),
                 'default' => 'no'),
 
-
             'sandbox' => array(
                 'title' => __('Enable Demo?'),
                 'type' => 'checkbox',
                 'label' => __('Enable Demo Hesabe OnlinePayment.'),
+                'default' => 'no'),
+
+            'currencyConvert' => array(
+                'title' => __('Enable Currency Converter?'),
+                'type' => 'checkbox',
+                'label' => __('Enable Hesabe Online Payment Currency Converter'),
                 'default' => 'no'),
 
             'title' => array(
@@ -72,7 +75,7 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'description' => __('This controls the description which the user sees during checkout.'),
                 'default' => __('The best payment gateway provider in Kuwait for e-payment through credit card & debit card')),
 
-            'merchantcode' => array(
+            'merchantCode' => array(
                 'title' => __('Merchant Code:'),
                 'type' => 'text',
                 'description' => __('This is Merchant Code.')),
@@ -111,7 +114,7 @@ class WC_Hesabe extends WC_Payment_Gateway
     }
 
     /**
-     *  There are no payment fields for hesabe, but we want to show the description if set.
+     *  There are no payment fields for Hesabe, but we want to show the description if set.
      **/
     function payment_fields()
     {
@@ -136,7 +139,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 
 
     /**
-     * Check for valid hesabe server callback // response processing //
+     * Check for valid Hesabe server callback // response processing //
      **/
     function check_hesabe_response()
     {
@@ -149,7 +152,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         $jsonDecode = json_decode($decryptedResponse);
         if (isset($jsonDecode->response)) {
             $orderInfo = $jsonDecode->response;
-            $orderId = $orderInfo->variable2;
+            $orderId = $orderInfo->variable1;
             if ($orderId != '') {
                 try {
                     if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -158,20 +161,20 @@ class WC_Hesabe extends WC_Payment_Gateway
                         $order = new woocommerce_order($orderId);
                     }
                     $orderStatus = $orderInfo->resultCode;
-                    $order->add_order_note($orderStatus);
+                    $order->add_order_note("Status: " . $orderStatus . " Amount: " . $orderInfo->Amount);
                     if ($orderStatus == "CAPTURED") {
                         $authorisedTransaction = true;
                         $msg['message'] = "Thank you for shopping with us. Your account has been charged and your transaction is successful. ";
                         $msg['class'] = 'success';
                         if ($order->status != 'processing') {
                             $order->payment_complete();
-                            $order->add_order_note('Hesabe  payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
+                            $order->add_order_note('Hesabe  payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
                             $woocommerce->cart->empty_cart();
                         }
                     }
                     if ($authorisedTransaction == false) {
                         $order->update_status('failed');
-                        $order->add_order_note('Hesabe  payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn);
+                        $order->add_order_note('Hesabe  payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
                         $order->add_order_note($msg['message']);
                     }
                 } catch (Exception $e) {
@@ -192,7 +195,7 @@ class WC_Hesabe extends WC_Payment_Gateway
             $woocommerce->set_messages();
         }
 
-        if(!isset($order)){
+        if (!isset($order)) {
             $redirect_url = home_url('/checkout');
         } else {
             $redirect_url = $this->get_return_url($order);

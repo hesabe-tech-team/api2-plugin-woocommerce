@@ -14,12 +14,12 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $this->title = $this->settings['title'];
         $this->description = $this->settings['description'];
         $mainSettings = get_option('woocommerce_hesabe_settings');
-        $this->merchantcode = (!empty($mainSettings['merchantcode'])) ? $mainSettings['merchantcode'] : '';
-        $this->user1 = (!empty($mainSettings['user1'])) ? $mainSettings['user1'] : '';
+        $this->merchantCode = (!empty($mainSettings['merchantCode'])) ? $mainSettings['merchantCode'] : '';
         $this->secretKey = (!empty($mainSettings['secretKey'])) ? $mainSettings['secretKey'] : '';
         $this->ivKey = (!empty($mainSettings['ivKey'])) ? $mainSettings['ivKey'] : '';
         $this->accessCode = (!empty($mainSettings['accessCode'])) ? $mainSettings['accessCode'] : '';
         $this->sandbox = (!empty($mainSettings['sandbox']) && 'yes' === $mainSettings['sandbox']) ? true : false;
+        $this->currencyConvert = (!empty($mainSettings['currencyConvert']) && 'yes' === $mainSettings['currencyConvert']) ? true : false;
 
         if ($this->sandbox) {
             $this->apiUrl = WC_HESABE_TEST_URL;
@@ -128,16 +128,18 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
 
         $post_values = array(
-            "merchantCode" => $this->merchantcode,
+            "merchantCode" => $this->merchantCode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
             "failureUrl" => $this->notify_url,
             "paymentType" => 2,
             "version" => '2.0',
             "orderReferenceNumber" => $order_id,
-            "variable1" => $this->user1,
-            "variable2" => $order_id
+            "variable1" => $order_id,
         );
+        if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
+            $post_values['currency'] = $order->get_currency();
+        }
         $post_string = json_encode($post_values);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
@@ -152,7 +154,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
         curl_setopt($curl, CURLOPT_HEADER, 1);
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 1);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_FORBID_REUSE, 1);
         curl_setopt($curl, CURLOPT_FRESH_CONNECT, 1);
@@ -161,9 +163,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
         $post_response = curl_exec($curl);
-        if ($post_response === false) {
-            //echo 'Curl error: ' . curl_error($curl);exit;
-        }
+
         curl_close($curl); // close curl object
 
         list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
@@ -173,7 +173,9 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $decode_response = json_decode($decrypted_post_response);
 
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
-            echo "We can not complete order at this moment";
+            $responseMessage = "We can not complete order at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
+            $order->add_order_note('<br/> ' . $responseMessage);
+            echo $responseMessage;
             exit;
         }
         $paymentData = $decode_response->response->data;
