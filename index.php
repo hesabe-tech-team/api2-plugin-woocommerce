@@ -23,8 +23,9 @@ function woocommerce_hesabe_init()
      * Required minimums and constants
      */
     define( 'WC_HESABE_VERSION', '2.0' );
-    define( 'WC_HESABE_TEST_URL', 'https://sandbox.hesabe.com' );
+    define( 'WC_HESABE_TEST_URL', 'http://sandbox.hesabe.com' );
     define( 'WC_HESABE_LIVE_URL', 'https://api.hesabe.com' );
+    define( 'WC_HESABE_INDIRECT_METHOD', true ); // Displaying Hesabe payment method(indirect)
 
     /**
      * Gateway class
@@ -61,11 +62,13 @@ function woocommerce_hesabe_init()
      */
     function hesabe_setting_enable_manager($available_gateways)
     {
-        if (isset($available_gateways['hesabe'])) {
-            unset($available_gateways['hesabe']);
-        } else {
+        if (!isset($available_gateways['hesabe'])) {
             unset($available_gateways['hesabe_mpgs']);
             unset($available_gateways['hesabe_knet']);
+        }
+
+        if(!WC_HESABE_INDIRECT_METHOD){
+            unset($available_gateways['hesabe']);
         }
         return $available_gateways;
     }

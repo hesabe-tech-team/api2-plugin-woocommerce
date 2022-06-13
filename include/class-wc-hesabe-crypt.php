@@ -46,7 +46,7 @@ class WC_Hesabe_Crypt
 
     public static function decrypt($code, $key, $ivKey)
     {
-        if (!(ctype_xdigit($code) && strlen($code) % 2 == 0)) {
+        if (!(ctype_xdigit($code) && strlen($code) % 2 === 0)) {
             return false;
         }
         $code = self::hex2ByteArray(trim($code));
@@ -74,7 +74,7 @@ class WC_Hesabe_Crypt
         if ($pad > strlen($text)) {
             return false;
         }
-        if (strspn($text, chr($pad), strlen($text) - $pad) != $pad) {
+        if (strspn($text, chr($pad), strlen($text) - $pad) !== $pad) {
             return false;
         }
         return substr($text, 0, -1 * $pad);

@@ -127,7 +127,10 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         } else {
             $order = new woocommerce_order($order_id);
         }
-
+        $order_data = $order->get_data();
+        $order_version = $order_data['version']??0;
+        $order_billing_first_name = $order_data['billing']['first_name']??"";
+        $order_billing_last_name = $order_data['billing']['last_name']??"";
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
 
         $post_values = array(
@@ -139,6 +142,8 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             "version" => '2.0',
             "orderReferenceNumber" => $order_id,
             "variable1" => $order_id,
+            "variable2" => $order_version,
+            "name" => $order_billing_first_name." ".$order_billing_last_name,
         );
 
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
