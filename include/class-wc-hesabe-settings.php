@@ -144,7 +144,6 @@ class WC_Hesabe extends WC_Payment_Gateway
     function check_hesabe_response()
     {
         global $woocommerce;
-        $authorisedTransaction = false;
         $msg['class'] = 'error';
         $msg['message'] = "This transaction has been declined. Please attempt your purchase again.";
         $responseData = $_REQUEST['data'];
@@ -161,20 +160,20 @@ class WC_Hesabe extends WC_Payment_Gateway
                         $order = new woocommerce_order($orderId);
                     }
                     $orderStatus = $orderInfo->resultCode;
-                    $order->add_order_note("Status: " . $orderStatus . " Amount: " . $orderInfo->Amount);
-                    if ($orderStatus == "CAPTURED") {
-                        $authorisedTransaction = true;
+                    //$order->add_order_note("Order Response: " . $decryptedResponse);
+                    $order->add_order_note("Status: " . $orderStatus . " Amount: " . $orderInfo->amount);
+                    if ($jsonDecode->status == true && ($orderStatus == "CAPTURED" || $orderStatus == "ACCEPT" || $orderStatus == "AUTHORIZED" || $orderStatus == "PARTIALLY_CAPTURED")) {
                         $msg['message'] = "Thank you for shopping with us. Your account has been charged and your transaction is successful. ";
                         $msg['class'] = 'success';
                         if ($order->status != 'processing') {
                             $order->payment_complete();
-                            $order->add_order_note('Hesabe  payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
+                            $order->add_order_note('Hesabe payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->amount);
                             $woocommerce->cart->empty_cart();
                         }
                     }
-                    if ($authorisedTransaction == false) {
+                    else {
                         $order->update_status('failed');
-                        $order->add_order_note('Hesabe  payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
+                        $order->add_order_note('Hesabe payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
                         $order->add_order_note($msg['message']);
                     }
                 } catch (Exception $e) {
