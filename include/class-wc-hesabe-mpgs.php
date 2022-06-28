@@ -128,6 +128,8 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $order_version = $order_data['version']??0;
         $order_billing_first_name = $order_data['billing']['first_name']??"";
         $order_billing_last_name = $order_data['billing']['last_name']??"";
+        $order_billing_phone = $order_data['billing']['phone']??"";
+        $order_billing_email = $order_data['billing']['email']??"";
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
 
         $post_values = array(
@@ -140,8 +142,16 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "orderReferenceNumber" => $order_id,
             "variable1" => $order_id,
             "variable2" => $order_version,
+            "variable3" => $order_billing_first_name." ".$order_billing_last_name,
+            "variable4" => $order_billing_phone,
+            "variable5" => $order_billing_email,
             "name" => $order_billing_first_name." ".$order_billing_last_name,
+            "mobile_number" => $order_billing_phone
         );
+        $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
+        if (preg_match($pattern, $order_data['billing']['email'])) {
+            $post_values['email'] = $order_billing_email;
+        }
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
