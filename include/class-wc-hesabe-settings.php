@@ -19,6 +19,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         $this->secretKey = $this->settings['secretKey'];
         $this->ivKey = $this->settings['ivKey'];
         $this->accessCode = $this->settings['accessCode'];
+        $this->currencyConvert = (!empty($this->settings['currencyConvert']) && 'yes' === $this->settings['currencyConvert']) ? true : false;
 
         if ($this->sandbox == 'yes') {
             $this->apiUrl = WC_HESABE_TEST_URL;
