@@ -131,7 +131,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         $order_version = $order_data['version']??0;
         $order_billing_first_name = $order_data['billing']['first_name']??"";
         $order_billing_last_name = $order_data['billing']['last_name']??"";
-        $order_billing_phone = $order_data['billing']['phone']??"";
+        $order_billing_phone = trim($order_data['billing']['phone'],"+")??"";
         $order_billing_email = $order_data['billing']['email']??"";
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
 
