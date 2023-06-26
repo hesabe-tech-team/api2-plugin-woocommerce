@@ -142,20 +142,14 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
             "failureUrl" => $this->notify_url,
             "paymentType" => 1,
             "version" => '2.0',
-            "orderReferenceNumber" => $order_id,
-            "variable1" => $order_id,
-            "variable2" => $order_version,
-            "variable3" => $order_billing_first_name." ".$order_billing_last_name,
-            "variable4" => $order_billing_phone,
-            "variable5" => $order_billing_email,
-            "name" => $order_billing_first_name." ".$order_billing_last_name,
-            "mobile_number" => $order_billing_phone
+            "orderReferenceNumber" =>'ORDERNO_000'.$order_id, 
+            "variable1" => 'OrderNo__ORDERNO_000'.$order_id,
+            "variable2" => 'Platform__WooCommerce_V'.$order_version,
+            "variable3" => 'Website__'.home_url(),
+            "variable4" => 'Name__'.$order_billing_first_name." ".$order_billing_last_name,
+            "variable5" => 'Mobile/Email__'.$order_billing_phone.'/'.$order_billing_email,
         );
 
-        $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
-        if (preg_match($pattern, $order_data['billing']['email'])) {
-            $post_values['email'] = $order_billing_email;
-        }
 
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
