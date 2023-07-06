@@ -251,7 +251,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
-        $post_string = json_encode($post_values);
+        $post_string = json_encode($post_values,JSON_UNESCAPED_UNICODE);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
@@ -282,7 +282,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 
         $decode_response = json_decode($decrypted_post_response);
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
-            $responseMessage = "We can not complete order at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
+            $responseMessage = "We can not Process your payment at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
             $order->add_order_note('<br/> ' . $responseMessage);
             echo $responseMessage;
             exit;
