@@ -6,7 +6,7 @@ Description: Integrate the Hesabe payment gateway with your website.
 This plugin included with two payment methods(Knet & MPGS).
 This plugin developed using encryption Hesabe API
 More secure and easy configuration.
-Version: 2.0
+Version: 3.0
 Author: HesabeTeam
 License: GNU General Public License v3.0
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -22,8 +22,8 @@ function woocommerce_hesabe_init()
     /**
      * Required minimums and constants
      */
-    define( 'WC_HESABE_VERSION', '2.0' );
-    define( 'WC_HESABE_TEST_URL', 'http://sandbox.hesabe.com' );
+    define( 'WC_HESABE_VERSION', '3.0' );
+    define( 'WC_HESABE_TEST_URL', 'https://sandbox.hesabe.com' );
     define( 'WC_HESABE_LIVE_URL', 'https://api.hesabe.com' );
     define( 'WC_HESABE_INDIRECT_METHOD', true ); // Displaying Hesabe payment method(indirect)
 

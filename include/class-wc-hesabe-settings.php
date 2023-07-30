@@ -152,7 +152,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         $jsonDecode = json_decode($decryptedResponse);
         if (isset($jsonDecode->response)) {
             $orderInfo = $jsonDecode->response;
-            $orderId = $orderInfo->variable1;
+            $orderId =str_replace('OrderNo__ORDERNO_000','',$orderInfo->variable1);
             if ($orderId != '') {
                 try {
                     if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -240,24 +240,18 @@ class WC_Hesabe extends WC_Payment_Gateway
             "failureUrl" => $this->notify_url,
             "paymentType" => 0,
             "version" => '2.0',
-            "orderReferenceNumber" => $order_id,
-            "variable1" => $order_id,
-            "variable2" => $order_version,
-            "variable3" => $order_billing_first_name." ".$order_billing_last_name,
-            "variable4" => $order_billing_phone,
-            "variable5" => $order_billing_email,
-            "name" => $order_billing_first_name." ".$order_billing_last_name,
-            "mobile_number" => $order_billing_phone
+            "orderReferenceNumber" =>'ORDERNO_000'.$order_id, 
+            "variable1" => 'OrderNo__ORDERNO_000'.$order_id,
+            "variable2" => 'Platform__WooCommerce_V'.$order_version,
+            "variable3" => 'Website__'.home_url(),
+            "variable4" => 'Name__'.$order_billing_first_name." ".$order_billing_last_name,
+            "variable5" => 'Mobile/Email__'.$order_billing_phone.'/'.$order_billing_email,
         );
 
-        $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
-        if (preg_match($pattern, $order_data['billing']['email'])) {
-            $post_values['email'] = $order_billing_email;
-        }
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
-        $post_string = json_encode($post_values);
+        $post_string = json_encode($post_values,JSON_UNESCAPED_UNICODE);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
@@ -288,7 +282,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 
         $decode_response = json_decode($decrypted_post_response);
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
-            $responseMessage = "We can not complete order at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
+            $responseMessage = "We can not Process your payment at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
             $order->add_order_note('<br/> ' . $responseMessage);
             echo $responseMessage;
             exit;
