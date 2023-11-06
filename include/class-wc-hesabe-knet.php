@@ -9,7 +9,7 @@ class WC_Hesabe_Knet extends WC_Payment_Gateway
         // General configuration set
         $this->id = 'hesabe_knet';
         $this->method_title = __('Knet Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/logo.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/knet.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();

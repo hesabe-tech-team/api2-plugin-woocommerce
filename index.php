@@ -23,7 +23,7 @@ function woocommerce_hesabe_init()
      * Required minimums and constants
      */
     define( 'WC_HESABE_VERSION', '2.0' );
-    define( 'WC_HESABE_TEST_URL', 'http://sandbox.hesabe.com' );
+    define( 'WC_HESABE_TEST_URL', 'https://sandbox.hesabe.com' );
     define( 'WC_HESABE_LIVE_URL', 'https://api.hesabe.com' );
     define( 'WC_HESABE_INDIRECT_METHOD', true ); // Displaying Hesabe payment method(indirect)
 
