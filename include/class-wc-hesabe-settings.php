@@ -8,7 +8,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         // Go wild in here
         $this->id = 'hesabe';
         $this->method_title = __('Hesabe Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/cards.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/allcards.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -163,7 +163,7 @@ class WC_Hesabe extends WC_Payment_Gateway
                     $orderStatus = $orderInfo->resultCode;
                     //$order->add_order_note("Order Response: " . $decryptedResponse);
                     $order->add_order_note("Status: " . $orderStatus . " Amount: " . $orderInfo->amount);
-                    if ($jsonDecode->status == true && ($orderStatus == "CAPTURED" || $orderStatus == "ACCEPT" || $orderStatus == "AUTHORIZED" || $orderStatus == "PARTIALLY_CAPTURED")) {
+                    if ($jsonDecode->status == true && ($orderStatus == "CAPTURED" || $orderStatus == "ACCEPT" || $orderStatus == "AUTHORIZED" || $orderStatus == "PARTIALLY_CAPTURED" || $orderStatus == "SUCCESS")) {
                         $msg['message'] = "Thank you for shopping with us. Your account has been charged and your transaction is successful. ";
                         $msg['class'] = 'success';
                         if ($order->status != 'processing') {
