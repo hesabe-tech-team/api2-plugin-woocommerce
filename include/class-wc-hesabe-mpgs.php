@@ -143,10 +143,10 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "variable1" => $order_id,
             "variable2" => $order_version,
             "variable3" => $order_billing_first_name." ".$order_billing_last_name,
-            "variable4" => $order_billing_phone,
+            "variable4" => preg_replace('/[^0-9]/', '', $order_billing_phone),
             "variable5" => $order_billing_email,
             "name" => $order_billing_first_name." ".$order_billing_last_name,
-            "mobile_number" => $order_billing_phone
+            "mobile_number" => preg_replace('/[^0-9]/', '', $order_billing_phone)
         );
         $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
         if (preg_match($pattern, $order_data['billing']['email'])) {
