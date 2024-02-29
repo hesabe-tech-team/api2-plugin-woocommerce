@@ -1,13 +1,15 @@
 <?php
 
-class WC_Hesabe_Mpgs extends WC_Payment_Gateway
+class WC_Hesabe_Amex extends WC_Payment_Gateway
 {
+
+
     public function __construct()
     {
         // General configuration set
-        $this->id = 'hesabe_mpgs';
-        $this->method_title = __('Visa/MasterCard Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png';
+        $this->id = 'hesabe_amex';
+        $this->method_title = __('Amex Online Payment');
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/amex_new.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -29,6 +31,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
         $this->notify_url = home_url('/wc-api/wc_hesabe');
 
+
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         } else {
@@ -45,14 +48,14 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             'enabled' => array(
                 'title' => __('Enable/Disable'),
                 'type' => 'checkbox',
-                'label' => __('Enable Hesabe Online Payment Module.'),
+                'label' => __('Enable Hesabe Amex Online Payment Module.'),
                 'default' => 'no'),
 
             'title' => array(
                 'title' => __('Title:'),
                 'type' => 'text',
                 'description' => __('This controls the title which the user sees during checkout.'),
-                'default' => __('MPGS Online Payment via Hesabe')),
+                'default' => __('Amex Online Payment via Hesabe')),
 
             'description' => array(
                 'title' => __('Description:'),
@@ -88,8 +91,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
 
     /**
      * Receipt Page
-     * @param $order
-     */
+     **/
     function receipt_page($order)
     {
         echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
@@ -119,6 +121,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
      */
     public function generate_hesabe_form($order_id)
     {
+
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
@@ -137,7 +140,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
             "failureUrl" => $this->notify_url,
-            "paymentType" => 2,
+            "paymentType" => 7,
             "version" => '2.0',
             "orderReferenceNumber" => $order_id,
             "variable1" => $order_id,
@@ -148,10 +151,12 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
             "name" => $order_billing_first_name." ".$order_billing_last_name,
             "mobile_number" => preg_replace('/[^0-9]/', '', $order_billing_phone)
         );
+
         $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
         if (preg_match($pattern, $order_data['billing']['email'])) {
             $post_values['email'] = $order_billing_email;
         }
+
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
@@ -178,7 +183,6 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
         $post_response = curl_exec($curl);
-
         curl_close($curl); // close curl object
 
         list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
@@ -186,7 +190,6 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
 
         $decode_response = json_decode($decrypted_post_response);
-
         if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
             $responseMessage = "We can not complete order at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
             $order->add_order_note('<br/> ' . $responseMessage);
@@ -197,4 +200,5 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
         header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
     }
+
 }

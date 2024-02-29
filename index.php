@@ -34,6 +34,8 @@ function woocommerce_hesabe_init()
     require_once __DIR__ . '/include/class-wc-hesabe-settings.php';
     require_once __DIR__ . '/include/class-wc-hesabe-knet.php';
     require_once __DIR__ . '/include/class-wc-hesabe-mpgs.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-apple.php';
+    require_once __DIR__ . '/include/class-wc-hesabe-amex.php';
 
     /**
      * Add the Gateway to WooCommerce
@@ -45,6 +47,8 @@ function woocommerce_hesabe_init()
         $methods[] = 'WC_Hesabe';
         $methods[] = 'WC_Hesabe_Knet';
         $methods[] = 'WC_Hesabe_Mpgs';
+        $methods[] = 'WC_Hesabe_ApplePay';
+        $methods[] = 'WC_Hesabe_Amex';
         return $methods;
     }
 
@@ -65,11 +69,21 @@ function woocommerce_hesabe_init()
         if (!isset($available_gateways['hesabe'])) {
             unset($available_gateways['hesabe_mpgs']);
             unset($available_gateways['hesabe_knet']);
+            unset($available_gateways['hesabe_apple']);
+            unset($available_gateways['hesabe_amex']);
         }
 
         if(!WC_HESABE_INDIRECT_METHOD){
             unset($available_gateways['hesabe']);
         }
+          // Check if the browser is Safari
+          $is_safari = strpos($_SERVER['HTTP_USER_AGENT'], 'Safari') && !strpos($_SERVER['HTTP_USER_AGENT'], 'Chrome');
+
+          if($is_safari){
+              $available_gateways['hesabe_apple'] = $available_gateways['hesabe_apple'];
+          } else {
+              unset($available_gateways['hesabe_apple']);
+          }
         return $available_gateways;
     }
 }
