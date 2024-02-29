@@ -6,7 +6,7 @@ class WC_Hesabe_Mpgs extends WC_Payment_Gateway
     {
         // General configuration set
         $this->id = 'hesabe_mpgs';
-        $this->method_title = __('MPGS Online Payment');
+        $this->method_title = __('Visa/MasterCard Online Payment');
         $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png';
         $this->has_fields = false;
         $this->init_form_fields();

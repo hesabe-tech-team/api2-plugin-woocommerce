@@ -2,9 +2,9 @@
 
 Contributors: Heasabe Payment Collections - Hesabe Team
 
-Version v2.0.4
+Version v4.0.0
 
-#### WooCommerce Hesabe API 2.0
+#### WooCommerce Hesabe API 4.0
 
 Allows you to use Hesabe payment gateway with the WooCommerce plugin.
 
@@ -41,4 +41,5 @@ Allows you to use Hesabe payment gateway with the WooCommerce plugin.
  == Change Log == 
  - Release v2.0.3 | Updated deprecated methods
  - Release v2.0.4 | Currency Converter Included
+ - Release V2.1.2 | Removing special characters from phone number
 
