@@ -2,6 +2,8 @@
 
 Contributors: Heasabe Payment Collections - Hesabe Team
 
+WooCommerce Hesabe API 4.0
+
 Version v4.0.0
 
 
