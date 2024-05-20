@@ -2,9 +2,9 @@
 
 Contributors: Heasabe Payment Collections - Hesabe Team
 
-Version v2.0.4
+Version v4.0.0
 
-#### WooCommerce Hesabe API 2.0
+#### WooCommerce Hesabe API 4.0
 
 Allows you to use Hesabe payment gateway with the WooCommerce plugin.
 
@@ -15,9 +15,24 @@ Allows you to use Hesabe payment gateway with the WooCommerce plugin.
 
 1. Ensure you have latest version of WooCommerce plugin installed
 
-2. Unzip and upload contents of the plugin to your /wp-content/plugins/ directory
+2. Unzip and upload Hesabe woocommerce plugin to your /wp-content/plugins/ directory 
 
-3. Activate the plugin through the 'Plugins' menu in WordPress
+    OR
+
+3. Open wordpress admin panel Plugins->Add New Plugin->Upload plugin , select and upload hesabe plugin 
+
+
+4. Activate the plugin through the Plugins->Installed Plugins in admin panel.
+
+5. To enable the Hesabe payment method
+    a. Goto Woocommerce ->Settings ->Payment
+    b. Enable Hesabe Online Payment 
+    c. Select the Payment methods if you select Direct payment method
+    d. Enable Demo mode if you are testing with test credentials and disable it while using production      credentials.
+    e. Enable Currency converter also if needed.
+    f. Save changes.
+    
+
 
 
 == Screenshots ==
@@ -26,19 +41,8 @@ Allows you to use Hesabe payment gateway with the WooCommerce plugin.
 
 2. Hesabe setting page
 
-3. Hesabe Payment gateway option at the checkout page
+3. Hesabe direct method
 
+4. Hesabe Payment gateway option at the checkout page
 
-== Verified Versions ==
-
-1. ##### Wordpress
-    - wordpress-5.8
-    - wordpress-5.8.3
-2. ##### woocommerce
-    - woocommerce.5.5.2
-    - woocommerce.6.1.0
-    
- == Change Log == 
- - Release v2.0.3 | Updated deprecated methods
- - Release v2.0.4 | Currency Converter Included
 

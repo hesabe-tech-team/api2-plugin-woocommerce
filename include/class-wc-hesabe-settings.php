@@ -8,7 +8,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         // Go wild in here
         $this->id = 'hesabe';
         $this->method_title = __('Hesabe Online Payment');
-        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/allcards.png';
+        $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/hesabe-new.png';
         $this->has_fields = false;
         $this->init_form_fields();
         $this->init_settings();
@@ -20,7 +20,44 @@ class WC_Hesabe extends WC_Payment_Gateway
         $this->ivKey = $this->settings['ivKey'];
         $this->accessCode = $this->settings['accessCode'];
         $this->currencyConvert = (!empty($this->settings['currencyConvert']) && 'yes' === $this->settings['currencyConvert']) ? true : false;
-
+        if($this->settings['direct'] == 'no'){
+            $this->direct = false;
+            $this->settings['direct1'] = 'no';
+            $this->settings['direct2'] = 'no';
+            $this->settings['direct3'] = 'no';
+            $this->settings['direct4'] = 'no';
+            $this->settings['direct5'] = 'no';
+        }
+        else{
+            if($this->settings['direct1']=='yes'){
+                $this->direct1 = true;
+                
+            }
+            else if($this->settings['direct2']=='yes'){
+                $this->direct2 = true;
+            
+            }
+            else if($this->settings['direct3']=='yes'){
+                $this->direct3 = true;
+            }
+            else if($this->settings['direct4']=='yes'){
+                $this->direct4 = true;
+            }
+            else if($this->settings['direct5']=='yes'){
+                $this->direct5 = true;
+            }
+            else{
+                if ($this->settings['direct1'] == 'no' &&
+                $this->settings['direct2'] == 'no' &&
+                $this->settings['direct3'] == 'no' &&
+                $this->settings['direct4'] == 'no' &&
+                $this->settings['direct5'] == 'no') {
+                // Set a default method as true if none are selected
+                    $this->settings['direct1'] = 'yes';
+                }
+            }
+        }
+        
         if ($this->sandbox == 'yes') {
             $this->apiUrl = WC_HESABE_TEST_URL;
         } else {
@@ -30,7 +67,6 @@ class WC_Hesabe extends WC_Payment_Gateway
 
         $this->msg['message'] = "";
         $this->msg['class'] = "";
-
         add_action('woocommerce_api_wc_hesabe', array($this, 'check_hesabe_response'));
         add_action('valid-hesabe-request', array($this, 'successful_request'));
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -39,19 +75,84 @@ class WC_Hesabe extends WC_Payment_Gateway
             add_action('woocommerce_update_options_payment_gateways', array(&$this, 'process_admin_options'));
         }
         add_action('woocommerce_receipt_hesabe', array($this, 'receipt_page'));
+        add_action('admin_enqueue_scripts', array($this,'enqueue_admin_scripts'));
+        add_action('admin_enqueue_scripts', array($this,'hesabe_admin_scripts'));
+        add_action('admin_enqueue_scripts', array($this,'hesabe_admin_styles'));
+        
+    }
+    // Enqueue the custom admin script
+    function hesabe_admin_scripts() {
+        wp_enqueue_script('hesabe-admin-custom', plugins_url('/js/admin-custom.js', __FILE__), array('jquery'), '1.0', true);
+    }
+    // Enqueue the custom admin stylesheet
+    function hesabe_admin_styles() {
+        wp_enqueue_style('hesabe-admin-custom', plugins_url('/css/admin-custom.css', __FILE__));
+    }
+    // Enqueue the custom admin script
+    function enqueue_admin_scripts($hook) {
+        // Adjust this hook name to match your settings page
+    if ($hook !== 'woocommerce_page_wc-settings') {
+        return;
     }
 
-
+    wp_enqueue_script(
+        'hesabe-settings-script',
+        plugin_dir_url(__FILE__) . 'js/hesabe-settings.js',
+        array('jquery'),
+        '1.0.0',
+        true
+    );
+    }
     function init_form_fields()
     {
-
-        $this->form_fields = array(
+        $this->form_fields = array(           
             'enabled' => array(
                 'title' => __('Enable/Disable'),
                 'type' => 'checkbox',
                 'label' => __('Enable Hesabe Online Payment Module.'),
-                'default' => 'no'),
-
+                'default' => 'no'
+            ),
+            'direct' => array(
+                    'title' => __('Enable Direct Payment Method'),
+                    'type' => 'checkbox',
+                    'label' => __('Direct Payment Method.'),
+                    'default' => 'no',
+            ),
+            'direct1' => array(
+                'title' => __('Knet'),
+                'type' => 'checkbox',
+                'label' => __('Enable Knet.'),
+                'default' => 'no',
+                'class' => 'direct-toggle', // Add a class for easier selection
+            ),
+            'direct2' => array(
+                'title' => __('Applepay (Knet)'),
+                'type' => 'checkbox',
+                'label' => __('Enable Knet Applepay.'),
+                'default' => 'no',
+                'class' => 'direct-toggle', // Add a class for easier selection
+            ),
+            'direct3' => array(
+                'title' => __('Visa/Mastercard'),
+                'type' => 'checkbox',
+                'label' => __('Enable Visa/Mastercard.'),
+                'default' => 'no',
+                'class' => 'direct-toggle', // Add a class for easier selection
+            ),
+            'direct4' => array(
+                'title' => __('Amex'),
+                'type' => 'checkbox',
+                'label' => __('Enable Amex.'),
+                'default' => 'no',
+                'class' => 'direct-toggle', // Add a class for easier selection
+            ),
+            'direct5' => array(
+                'title' => __('ApplePay'),
+                'type' => 'checkbox',
+                'label' => __('Enable Applepay.'),
+                'default' => 'no',
+                'class' => 'direct-toggle', // Add a class for easier selection
+            ),           
             'sandbox' => array(
                 'title' => __('Enable Demo?'),
                 'type' => 'checkbox',
@@ -97,8 +198,12 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'type' => 'text',
                 'description' => __('IV of Secret Key'),
             )
-        );
-    }
+            );
+      
+   
+}
+  
+    
 
     /**
      * Admin Panel Options
@@ -117,15 +222,80 @@ class WC_Hesabe extends WC_Payment_Gateway
     /**
      *  There are no payment fields for Hesabe, but we want to show the description if set.
      **/
-    function payment_fields()
+    public function payment_fields()
     {
-        if ($this->description) echo wpautop(wptexturize($this->description));
+        // Display the default description
+        if ($this->description) {
+            echo '<p>' . wpautop(wptexturize($this->description)) . '</p>';
+        }
+        // Display enabled payment methods
+        $enabled_methods = array();
+        for ($i = 1; $i <= 5; $i++) {
+            $setting_name = 'direct' . $i;
+            if ($this->settings[$setting_name] == 'yes') {
+                $enabled_methods[] = $i;
+            }
+        }
+    
+        if (!empty($enabled_methods)) {
+            echo '<p><strong>' . __('Select Payment Methods:', 'your-text-domain') . '</strong></p>'; 
+            echo '<style>
+            .hidden {
+                display: none;
+            }
+          </style>';        
+            $is_safari = strpos($_SERVER['HTTP_USER_AGENT'], 'Safari') !== false && strpos($_SERVER['HTTP_USER_AGENT'], 'Chrome') === false;
+            foreach ($enabled_methods as $method) {
+               
+                switch ($method) {
+                    case 1: 
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/knet.png';                       
+                        echo '<p><label><input type="radio" id="payment_option_1" name="payment_option" value="1"><img src="' . $img_src . '" alt="Knet"> KNET</label></p>';                      
+                        break;
+                    case 2:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png'; 
+                        $class = $is_safari ? '' : 'hidden';
+                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_2" name="payment_option" value="11"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay (Knet)</label></p>'; 
+                        break;
+                    case 3:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png'; 
+                        echo '<p><label><input type="radio" id="payment_option_3" name="payment_option" value="2"><img src="' . $img_src . '" alt="mastervisa"> VisaMaster</label></p>';
+                        break;
+                    case 4:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/amex_new.png'; 
+                        echo '<p><label><input type="radio" id="payment_option_4" name="payment_option" value="7"><img src="' . $img_src . '" alt="amex_new"> Amex</label></p>'; 
+                        break;                   
+                    case 5:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png'; 
+                        $class = $is_safari ? '' : 'hidden';
+                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_5" name="payment_option" value="9"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay</label></p>'; 
+                        break;
+                    
+                    
+                }               
+            
+            }
+
+       
+        echo '<input type="hidden" id="hesabe_selected_payment_type" name="hesabe_selected_payment_type" value="0">';
+        echo '<script>
+            jQuery(function($){
+                $("input[name=\'payment_option\']").change(function(){
+                    $("#hesabe_selected_payment_type").val($(this).val());
+                });
+            });
+        </script>';
+               
+        }
+    
+        
+        
     }
-
-
+    
     /**
      * Process the payment and return the result
      **/
+
     function process_payment($orderId)
     {
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
@@ -133,6 +303,13 @@ class WC_Hesabe extends WC_Payment_Gateway
         } else {
             $order = new woocommerce_order($orderId);
         }
+
+        // Capture the selected payment type from the submitted form
+        $selected_payment_type = isset($_POST['hesabe_selected_payment_type']) ? sanitize_text_field($_POST['hesabe_selected_payment_type']) : 0;
+
+        // Save the selected payment type to the order meta
+        update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
+
         return array('result' => 'success', 'redirect' => add_query_arg('order',
             $order->id, add_query_arg('key', $order->order_key, $order->get_checkout_payment_url(true)))
         );
@@ -203,7 +380,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         wp_redirect($redirect_url);
         exit;
     }
-
+  
     /**
      * Receipt Page
      **/
@@ -219,7 +396,7 @@ class WC_Hesabe extends WC_Payment_Gateway
      */
     public function generate_hesabe_form($order_id)
     {
-
+        
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
@@ -227,20 +404,22 @@ class WC_Hesabe extends WC_Payment_Gateway
         }
         $order_data = $order->get_data();
         $order_version = $order_data['version']??0;
+        // Retrieve the saved payment type from the order meta
+        $payment_type = get_post_meta($order_id, '_hesabe_payment_type', true);
         $order_billing_first_name = $order_data['billing']['first_name']??"";
         $order_billing_last_name = $order_data['billing']['last_name']??"";
         $order_billing_phone = $order_data['billing']['phone']??"";
         $order_billing_email = $order_data['billing']['email']??"";
         $orderAmount = number_format((float)$order->order_total, 3, '.', '');
-
         $post_values = array(
             "merchantCode" => $this->merchantCode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
             "failureUrl" => $this->notify_url,
-            "paymentType" => 0,
+            "paymentType" =>$payment_type,
             "version" => '2.0',
-            "orderReferenceNumber" => $order_id,
+            //"orderReferenceNumber" => $order_id,
+            "orderReferenceNumber" => $order->get_id(),
             "variable1" => $order_id,
             "variable2" => $order_version,
             "variable3" => $order_billing_first_name." ".$order_billing_last_name,

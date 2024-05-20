@@ -38,11 +38,6 @@ This is Hesabe payment gateway for WooCommerce. Allows you to use Hesabe payment
 
 2. Hesabe setting page
 
-3. Hesabe Payment gateway option at the checkout page
+3. Hesabe direct method
 
-
-== Verified Versions ==
-
-1. wordpress-5.8
-
-2. woocommerce.5.5.2
+4. Hesabe Payment gateway option at the checkout page
