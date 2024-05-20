@@ -2,7 +2,7 @@
 
 Contributors: Heasabe Payment Collections - Hesabe Team
 
-
+Version v4.0.0
 
 
 Allows you to use Hesabe payment gateway with the WooCommerce plugin.
