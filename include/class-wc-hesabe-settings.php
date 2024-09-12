@@ -280,6 +280,9 @@ class WC_Hesabe extends WC_Payment_Gateway
         echo '<input type="hidden" id="hesabe_selected_payment_type" name="hesabe_selected_payment_type" value="0">';
         echo '<script>
             jQuery(function($){
+                $("input[name=\'payment_option\']").prop("checked", false);
+                $("#hesabe_selected_payment_type").val("0");
+                
                 $("input[name=\'payment_option\']").change(function(){
                     $("#hesabe_selected_payment_type").val($(this).val());
                 });
