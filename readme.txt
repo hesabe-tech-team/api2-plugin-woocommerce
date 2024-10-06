@@ -17,7 +17,7 @@ Allows you to use Hesabe payment gateway with the WooCommerce plugin.
 
 This is Hesabe payment gateway for WooCommerce. Allows you to use Hesabe payment gateway with the WooCommerce plugin. It is strongly recommended for Kuwait payment.
 
-
+Direct Applepay Integration
 
 
 
