@@ -389,7 +389,10 @@ class WC_Hesabe extends WC_Payment_Gateway
      **/
     function receipt_page($order)
     {
-        echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
+        //echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
+        echo '<button class="applePaybtn" id="applePayment" style="padding:none; border:0;"> 
+                <img src="' . plugin_dir_url( __FILE__ ) . 'images/checkout.png" alt="Apple Pay">
+            </button>';
         echo $this->generate_hesabe_form($order);
     }
 
@@ -476,8 +479,35 @@ class WC_Hesabe extends WC_Payment_Gateway
             exit;
         }
         $paymentData = $decode_response->response->data;
-        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
-        exit;
+        // Output the script with jQuery check
+        echo '<script type="text/javascript">
+            jQuery(function($) {
+    
+                console.log("Calling Apple Pay API...");
+    
+                var applePayScript = document.createElement("script");
+                applePayScript.src = "https://applepay.cdn-apple.com/jsapi/v1/apple-pay-sdk.js";
+                document.body.appendChild(applePayScript);
+    
+                $.get("' . $this->apiUrl . '/applepay?data=' . $paymentData . '", function(response) {
+                    console.log("API script response:");
+        
+                    var scriptContent = response.replace(/<\/?script>/g, "");
+                    var inlineScript = document.createElement("script");
+                    inlineScript.type = "text/javascript";
+                    inlineScript.text = scriptContent;
+                    document.body.appendChild(inlineScript);
+                
+                });
+            
+            });
+        </script>';
+    
+        // Redirect if not using Apple Pay (other payment types)
+        if ($payment_type != 9 && $payment_type != 11) {
+            header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
+            exit;
+        }
     }
 }
 
