@@ -390,8 +390,9 @@ class WC_Hesabe extends WC_Payment_Gateway
     function receipt_page($order)
     {
         //echo '<p>' . __('Thank you for your order, Your order has initiated for payment!!') . '</p>';
-        echo '<button class="applePaybtn" id="applePayment" style="padding:none; border:0;"> 
-                <img src="' . plugin_dir_url( __FILE__ ) . 'images/checkout.png" alt="Apple Pay">
+        echo '<button class="applePaybtn" id="applePayment" 
+                style="padding: 0; border: none; background-color: inherit; cursor: pointer; outline: none;">
+                <img src="' . plugin_dir_url( __FILE__ ) . '/images/checkout.png" alt="Apple Pay" style="max-width: 70%; display: block; margin: 0 auto;">
             </button>';
         echo $this->generate_hesabe_form($order);
     }
