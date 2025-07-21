@@ -448,38 +448,43 @@ class WC_Hesabe extends WC_Payment_Gateway
             $post_values['currency'] = $order->get_currency();
         }
 		
-       $post_string = json_encode($post_values, JSON_UNESCAPED_UNICODE);
+       $post_string = json_encode($post_values, true);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
-        $encrypted_post_string = 'data=' . $encrypted_post_string;
- 		$header = array();
-        $header[] = 'accessCode: ' . $this->accessCode;
+        $post_fields = http_build_query([
+            'data' => $encrypted_post_string
+        ]);
        
+        $headers = [
+            'accessCode: ' . $this->accessCode,
+            'Accept: application/json',
+        ];
         $checkOutUrl = $this->apiUrl . '/checkout';
 
         $curl = curl_init($checkOutUrl);
 
-        curl_setopt($curl, CURLOPT_HEADER, 1);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 1);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl, CURLOPT_FORBID_REUSE, 1);
-        curl_setopt($curl, CURLOPT_FRESH_CONNECT, 1);
-        curl_setopt($curl, CURLOPT_POST, 1);
-        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 12);
-        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
+        curl_setopt_array($curl, [
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_CONNECTTIMEOUT => 12,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_POSTFIELDS => $post_fields,
+            ]);
         $post_response = curl_exec($curl);
+        if (curl_errno($curl)) {
+            $error_msg = curl_error($curl);
+            curl_close($curl);
+            // Handle CURL error
+            throw new Exception('CURL Error: ' . $error_msg);
+        }
         curl_close($curl); // close curl object
+        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($post_response, $this->secretKey, $this->ivKey);
 
-        list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
-
-
-        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
-
-        $decode_response = json_decode($decrypted_post_response);
-		 if (!$decode_response || !isset($decode_response->status) || !isset($decode_response->response->data)) {
+        $decode_response = json_decode($decrypted_post_response, true);
+		 if (!$decode_response || !isset($decode_response['status']) ||  !isset($decode_response['response']['data'])) {
 			
 			$errorCode = isset($decode_response->code) ? $decode_response->code : "Unknown";
 			$errorMessage = isset($decode_response->message) ? $decode_response->message : "No additional details available.";
@@ -489,7 +494,7 @@ class WC_Hesabe extends WC_Payment_Gateway
 			exit;
 		}
 
-        $paymentData = $decode_response->response->data;
+        $paymentData = $decode_response['response']['data'];
 		
         header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
