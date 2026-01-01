@@ -2,8 +2,40 @@
 
 class WC_Hesabe extends WC_Payment_Gateway
 {
+    /**
+     * Explicit property declarations to avoid dynamic property deprecation on PHP 8.2+
+     */
+    public $id;
+    public $method_title;
+    public $icon;
+    public $has_fields;
+    public $settings;
+    public $title;
+    public $description;
+
+    public $merchantCode;
+    public $sandbox;
+    public $secretKey;
+    public $ivKey;
+    public $accessCode;
+    public $currencyConvert;
+
+    public $direct;
+    public $direct1;
+    public $direct2;
+    public $direct3;
+    public $direct4;
+    public $direct5;
+
+    public $apiUrl;
+    public $notify_url;
+
+    public $msg = array();
+
     public function __construct()
     {
+        //Declare block support
+        $this->supports = array('products', 'refunds');
         // construct form //
         // Go wild in here
         $this->id = 'hesabe';
@@ -20,44 +52,32 @@ class WC_Hesabe extends WC_Payment_Gateway
         $this->ivKey = $this->settings['ivKey'];
         $this->accessCode = $this->settings['accessCode'];
         $this->currencyConvert = (!empty($this->settings['currencyConvert']) && 'yes' === $this->settings['currencyConvert']) ? true : false;
-        if($this->settings['direct'] == 'no'){
+        if ($this->settings['direct'] == 'no') {
             $this->direct = false;
             $this->settings['direct1'] = 'no';
             $this->settings['direct2'] = 'no';
             $this->settings['direct3'] = 'no';
             $this->settings['direct4'] = 'no';
             $this->settings['direct5'] = 'no';
-        }
-        else{
-            if($this->settings['direct1']=='yes'){
+        } else {
+            $this->direct = true;
+            if ($this->settings['direct1'] == 'yes') {
                 $this->direct1 = true;
-                
             }
-            else if($this->settings['direct2']=='yes'){
+            if ($this->settings['direct2'] == 'yes') {
                 $this->direct2 = true;
-            
             }
-            else if($this->settings['direct3']=='yes'){
+            if ($this->settings['direct3'] == 'yes') {
                 $this->direct3 = true;
             }
-            else if($this->settings['direct4']=='yes'){
+            if ($this->settings['direct4'] == 'yes') {
                 $this->direct4 = true;
             }
-            else if($this->settings['direct5']=='yes'){
+            if ($this->settings['direct5'] == 'yes') {
                 $this->direct5 = true;
             }
-            else{
-                if ($this->settings['direct1'] == 'no' &&
-                $this->settings['direct2'] == 'no' &&
-                $this->settings['direct3'] == 'no' &&
-                $this->settings['direct4'] == 'no' &&
-                $this->settings['direct5'] == 'no') {
-                // Set a default method as true if none are selected
-                    $this->settings['direct1'] = 'yes';
-                }
-            }
         }
-        
+
         if ($this->sandbox == 'yes') {
             $this->apiUrl = WC_HESABE_TEST_URL;
         } else {
@@ -75,37 +95,100 @@ class WC_Hesabe extends WC_Payment_Gateway
             add_action('woocommerce_update_options_payment_gateways', array(&$this, 'process_admin_options'));
         }
         add_action('woocommerce_receipt_hesabe', array($this, 'receipt_page'));
-        add_action('admin_enqueue_scripts', array($this,'enqueue_admin_scripts'));
-        add_action('admin_enqueue_scripts', array($this,'hesabe_admin_scripts'));
-        add_action('admin_enqueue_scripts', array($this,'hesabe_admin_styles'));
-        
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+        add_action('admin_enqueue_scripts', array($this, 'hesabe_admin_scripts'));
+        add_action('admin_enqueue_scripts', array($this, 'hesabe_admin_styles'));
+        // AJAX endpoint to create Hesabe checkout from frontend (blocks compatible)
+        add_action('wp_ajax_nopriv_hesabe_create_payment', array($this, 'ajax_create_hesabe_payment'));
+        add_action('wp_ajax_hesabe_create_payment', array($this, 'ajax_create_hesabe_payment'));
+
+        // Block scripts are registered via the Blocks integration class (WC_Hesabe_Blocks)
+
     }
+
+    // Block scripts will be enqueued and data supplied by `WC_Hesabe_Blocks` via the Blocks API.
+
+    /**
+     * Get enabled payment methods
+     */
+    private function get_enabled_payment_methods()
+    {
+        $methods = array();
+
+        if (isset($this->settings['direct']) && $this->settings['direct'] === 'yes') {
+            if (isset($this->settings['direct1']) && $this->settings['direct1'] === 'yes') {
+                $methods[] = array(
+                    'id'   => '1',
+                    'name' => 'KNET',
+                    'icon' => WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/knet.png',
+                );
+            }
+
+            if (isset($this->settings['direct2']) && $this->settings['direct2'] === 'yes') {
+                $methods[] = array(
+                    'id'   => '11',
+                    'name' => 'Apple Pay (Knet)',
+                    'icon' => WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png',
+                );
+            }
+
+            if (isset($this->settings['direct3']) && $this->settings['direct3'] === 'yes') {
+                $methods[] = array(
+                    'id'   => '2',
+                    'name' => 'Visa/Mastercard',
+                    'icon' => WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png',
+                );
+            }
+
+            if (isset($this->settings['direct4']) && $this->settings['direct4'] === 'yes') {
+                $methods[] = array(
+                    'id'   => '7',
+                    'name' => 'Amex',
+                    'icon' => WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/amex_new.png',
+                );
+            }
+
+            if (isset($this->settings['direct5']) && $this->settings['direct5'] === 'yes') {
+                $methods[] = array(
+                    'id'   => '9',
+                    'name' => 'Apple Pay',
+                    'icon' => WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png',
+                );
+            }
+        }
+
+        return $methods;
+    }
+
     // Enqueue the custom admin script
-    function hesabe_admin_scripts() {
+    function hesabe_admin_scripts()
+    {
         wp_enqueue_script('hesabe-admin-custom', plugins_url('/js/admin-custom.js', __FILE__), array('jquery'), '1.0', true);
     }
     // Enqueue the custom admin stylesheet
-    function hesabe_admin_styles() {
+    function hesabe_admin_styles()
+    {
         wp_enqueue_style('hesabe-admin-custom', plugins_url('/css/admin-custom.css', __FILE__));
     }
     // Enqueue the custom admin script
-    function enqueue_admin_scripts($hook) {
+    function enqueue_admin_scripts($hook)
+    {
         // Adjust this hook name to match your settings page
-    if ($hook !== 'woocommerce_page_wc-settings') {
-        return;
-    }
+        if ($hook !== 'woocommerce_page_wc-settings') {
+            return;
+        }
 
-    wp_enqueue_script(
-        'hesabe-settings-script',
-        plugin_dir_url(__FILE__) . 'js/hesabe-settings.js',
-        array('jquery'),
-        '1.0.0',
-        true
-    );
+        wp_enqueue_script(
+            'hesabe-settings-script',
+            plugin_dir_url(__FILE__) . 'js/hesabe-settings.js',
+            array('jquery'),
+            '1.0.0',
+            true
+        );
     }
     function init_form_fields()
     {
-        $this->form_fields = array(           
+        $this->form_fields = array(
             'enabled' => array(
                 'title' => __('Enable/Disable'),
                 'type' => 'checkbox',
@@ -113,10 +196,10 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'default' => 'no'
             ),
             'direct' => array(
-                    'title' => __('Enable Direct Payment Method'),
-                    'type' => 'checkbox',
-                    'label' => __('Direct Payment Method.'),
-                    'default' => 'no',
+                'title' => __('Enable Direct Payment Method'),
+                'type' => 'checkbox',
+                'label' => __('Direct Payment Method.'),
+                'default' => 'no',
             ),
             'direct1' => array(
                 'title' => __('Knet'),
@@ -152,35 +235,40 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'label' => __('Enable Applepay.'),
                 'default' => 'no',
                 'class' => 'direct-toggle', // Add a class for easier selection
-            ),           
+            ),
             'sandbox' => array(
                 'title' => __('Enable Demo?'),
                 'type' => 'checkbox',
                 'label' => __('Enable Demo Hesabe OnlinePayment.'),
-                'default' => 'no'),
+                'default' => 'no'
+            ),
 
             'currencyConvert' => array(
                 'title' => __('Enable Currency Converter?'),
                 'type' => 'checkbox',
                 'label' => __('Enable Hesabe Online Payment Currency Converter'),
-                'default' => 'no'),
+                'default' => 'no'
+            ),
 
             'title' => array(
                 'title' => __('Title:'),
                 'type' => 'text',
                 'description' => __('This controls the title which the user sees during checkout.'),
-                'default' => __('Hesabe Payments')),
+                'default' => __('Hesabe Payments')
+            ),
 
             'description' => array(
                 'title' => __('Description:'),
                 'type' => 'textarea',
                 'description' => __('This controls the description which the user sees during checkout.'),
-                'default' => __('The Hesabe payment gateway provider in Kuwait for e-payment through credit card & debit card')),
+                'default' => __('The Hesabe payment gateway provider in Kuwait for e-payment through credit card & debit card')
+            ),
 
             'merchantCode' => array(
                 'title' => __('Merchant Code:'),
                 'type' => 'text',
-                'description' => __('This is Merchant Code.')),
+                'description' => __('This is Merchant Code.')
+            ),
 
             'accessCode' => array(
                 'title' => __('Access Code:'),
@@ -198,12 +286,10 @@ class WC_Hesabe extends WC_Payment_Gateway
                 'type' => 'text',
                 'description' => __('IV of Secret Key'),
             )
-            );
-      
-   
-}
-  
-    
+        );
+    }
+
+
 
     /**
      * Admin Panel Options
@@ -216,7 +302,6 @@ class WC_Hesabe extends WC_Payment_Gateway
         echo '<table class="form-table">';
         $this->generate_settings_html();
         echo '</table>';
-
     }
 
     /**
@@ -236,49 +321,46 @@ class WC_Hesabe extends WC_Payment_Gateway
                 $enabled_methods[] = $i;
             }
         }
-    
+
         if (!empty($enabled_methods)) {
-            echo '<p><strong>' . __('Select Payment Methods:', 'your-text-domain') . '</strong></p>'; 
+            echo '<p><strong>' . __('Select Payment Methods:', 'your-text-domain') . '</strong></p>';
             echo '<style>
             .hidden {
                 display: none;
             }
-          </style>';        
+          </style>';
             $is_safari = strpos($_SERVER['HTTP_USER_AGENT'], 'Safari') !== false && strpos($_SERVER['HTTP_USER_AGENT'], 'Chrome') === false;
             foreach ($enabled_methods as $method) {
-               
+
                 switch ($method) {
-                    case 1: 
-                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/knet.png';                       
-                        echo '<p><label><input type="radio" id="payment_option_1" name="payment_option" value="1"><img src="' . $img_src . '" alt="Knet"> KNET</label></p>';                      
+                    case 1:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/knet.png';
+                        echo '<p><label><input type="radio" id="payment_option_1" name="payment_option" value="1"><img src="' . $img_src . '" alt="Knet"> KNET</label></p>';
                         break;
                     case 2:
-                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png'; 
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png';
                         $class = $is_safari ? '' : 'hidden';
-                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_2" name="payment_option" value="11"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay (Knet)</label></p>'; 
+                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_2" name="payment_option" value="11"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay (Knet)</label></p>';
                         break;
                     case 3:
-                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png'; 
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/mastervisa.png';
                         echo '<p><label><input type="radio" id="payment_option_3" name="payment_option" value="2"><img src="' . $img_src . '" alt="mastervisa"> VisaMaster</label></p>';
                         break;
                     case 4:
-                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/amex_new.png'; 
-                        echo '<p><label><input type="radio" id="payment_option_4" name="payment_option" value="7"><img src="' . $img_src . '" alt="amex_new"> Amex</label></p>'; 
-                        break;                   
-                    case 5:
-                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png'; 
-                        $class = $is_safari ? '' : 'hidden';
-                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_5" name="payment_option" value="9"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay</label></p>'; 
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/amex_new.png';
+                        echo '<p><label><input type="radio" id="payment_option_4" name="payment_option" value="7"><img src="' . $img_src . '" alt="amex_new"> Amex</label></p>';
                         break;
-                    
-                    
-                }               
-            
+                    case 5:
+                        $img_src = WP_PLUGIN_URL . "/" . plugin_basename(__DIR__) . '/images/apple.png';
+                        $class = $is_safari ? '' : 'hidden';
+                        echo '<p><label class="' . $class . '"><input type="radio" id="payment_option_5" name="payment_option" value="9"><img src="' . $img_src . '" alt="apple" class="' . $class . '"> Applepay</label></p>';
+                        break;
+                }
             }
 
-       
-        echo '<input type="hidden" id="hesabe_selected_payment_type" name="hesabe_selected_payment_type" value="0">';
-        echo '<script>
+
+            echo '<input type="hidden" id="hesabe_selected_payment_type" name="hesabe_selected_payment_type" value="0">';
+            echo '<script>
             jQuery(function($){
                 $("input[name=\'payment_option\']").prop("checked", false);
                 $("#hesabe_selected_payment_type").val("0");
@@ -288,37 +370,51 @@ class WC_Hesabe extends WC_Payment_Gateway
                 });
             });
         </script>';
-               
         }
-    
-        
-        
     }
-    
+
     /**
      * Process the payment and return the result
      **/
+    function process_payment($orderId)
+    {
+        if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
+            $order = new WC_Order($orderId);
+        } else {
+            $order = new woocommerce_order($orderId);
+        }
 
-   function process_payment($orderId)
-{
-    if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-        $order = new WC_Order($orderId);
-    } else {
-        $order = new woocommerce_order($orderId);
+        // Capture the selected payment type from the submitted form
+        // Works for both traditional checkout and block checkout
+        $selected_payment_type = isset($_POST['hesabe_selected_payment_type'])
+            ? sanitize_text_field($_POST['hesabe_selected_payment_type'])
+            : 0;
+
+        // For block checkout, check if payment type is in the POST data
+        if (! $selected_payment_type && isset($_POST['payment_method_data'])) {
+            // Try to get from payment method data
+            $payment_data = json_decode(stripslashes($_POST['payment_method_data']), true);
+            if (is_array($payment_data) && isset($payment_data['hesabe_selected_payment_type'])) {
+                $selected_payment_type = sanitize_text_field($payment_data['hesabe_selected_payment_type']);
+            }
+        }
+
+        // Save the selected payment type to the order meta
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Hesabe PROCESS_PAYMENT _POST keys: ' . implode(',', array_keys($_POST)));
+            error_log('Hesabe PROCESS_PAYMENT selected_payment_type (before save): ' . var_export($selected_payment_type, true));
+        }
+        $update_result = update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Hesabe PROCESS_PAYMENT update_post_meta result: ' . var_export($update_result, true) . ' saved_value: ' . get_post_meta($orderId, '_hesabe_payment_type', true));
+        }
+
+        // Redirect to the WooCommerce `order-pay` endpoint
+        return array(
+            'result' => 'success',
+            'redirect' => $order->get_checkout_payment_url(true)
+        );
     }
-
-    // Capture the selected payment type from the submitted form
-    $selected_payment_type = isset($_POST['hesabe_selected_payment_type']) ? sanitize_text_field($_POST['hesabe_selected_payment_type']) : 0;
-
-    // Save the selected payment type to the order meta
-    update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
-
-    // Redirect to the WooCommerce `order-pay` endpoint
-    return array(
-        'result' => 'success',
-        'redirect' => $order->get_checkout_payment_url(true)
-    );
-}
 
 
     /**
@@ -353,8 +449,7 @@ class WC_Hesabe extends WC_Payment_Gateway
                             $order->add_order_note('Hesabe payment successful<br/> Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token :' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->amount);
                             $woocommerce->cart->empty_cart();
                         }
-                    }
-                    else {
+                    } else {
                         $order->update_status('failed');
                         $order->add_order_note('Hesabe payment<br/>Payment Ref Number: ' . $orderInfo->paymentId . ' Payment Token : ' . $orderInfo->paymentToken . ' PaidOn :' . $orderInfo->paidOn . ' Amount : ' . $orderInfo->Amount);
                         $order->add_order_note($msg['message']);
@@ -382,10 +477,10 @@ class WC_Hesabe extends WC_Payment_Gateway
         } else {
             $redirect_url = $this->get_return_url($order);
         }
-        wp_redirect($redirect_url);
+        wp_safe_redirect($redirect_url);
         exit;
     }
-  
+
     /**
      * Receipt Page
      **/
@@ -401,45 +496,45 @@ class WC_Hesabe extends WC_Payment_Gateway
      */
     public function generate_hesabe_form($order_id)
     {
-        
+
         if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
             $order = new WC_Order($order_id);
         } else {
             $order = new woocommerce_order($order_id);
         }
         $order_data = $order->get_data();
-        $order_version = $order_data['version']??0;
+        $order_version = $order_data['version'] ?? 0;
         // Retrieve the saved payment type from the order meta
         $payment_type = get_post_meta($order_id, '_hesabe_payment_type', true);
-        $order_billing_first_name = $order_data['billing']['first_name']??"";
-        $order_billing_last_name = $order_data['billing']['last_name']??"";
-        $order_billing_phone = $order_data['billing']['phone']??"";
-        $order_billing_email = $order_data['billing']['email']??"";
+        $order_billing_first_name = $order_data['billing']['first_name'] ?? "";
+        $order_billing_last_name = $order_data['billing']['last_name'] ?? "";
+        $order_billing_phone = $order_data['billing']['phone'] ?? "";
+        $order_billing_email = $order_data['billing']['email'] ?? "";
         $orderAmount = number_format((float)$order->get_total(), 3, '.', '');
-		$name = htmlspecialchars($order_billing_first_name . " " . $order_billing_last_name, ENT_QUOTES, 'UTF-8');
+        $name = htmlspecialchars($order_billing_first_name . " " . $order_billing_last_name, ENT_QUOTES, 'UTF-8');
         $post_values = array(
             "merchantCode" => $this->merchantCode,
             "amount" => $orderAmount,
             "responseUrl" => $this->notify_url,
             "failureUrl" => $this->notify_url,
-            "paymentType" =>$payment_type,
+            "paymentType" => $payment_type,
             "version" => '2.0',
             //"orderReferenceNumber" => $order_id,
             "orderReferenceNumber" => $order->get_id(),
             "variable1" => $order_id,
-            "variable2" => $order_version,			
+            "variable2" => $order_version,
             //"variable3" => $order_billing_first_name." ".$order_billing_last_name,
             "variable4" => preg_replace('/[^0-9]/', '', $order_billing_phone),
             "variable5" => $order_billing_email,
-           // "name" => $order_billing_first_name." ".$order_billing_last_name,
+            // "name" => $order_billing_first_name." ".$order_billing_last_name,
             "mobile_number" => preg_replace('/[^0-9]/', '', $order_billing_phone)
         );
 
-		$post_values['name'] = $this->utf8_substr($name, 0, 50);
+        $post_values['name'] = $this->utf8_substr($name, 0, 50);
 
-		$post_values['variable3'] = $this->utf8_substr($name, 0, 50);
-		$post_values['variable5'] = $this->utf8_substr($order_billing_email, 0, 100);
-		
+        $post_values['variable3'] = $this->utf8_substr($name, 0, 50);
+        $post_values['variable5'] = $this->utf8_substr($order_billing_email, 0, 100);
+
         $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
         if (preg_match($pattern, $order_data['billing']['email'])) {
             $post_values['email'] = $order_billing_email;
@@ -447,15 +542,20 @@ class WC_Hesabe extends WC_Payment_Gateway
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
-		
-       $post_string = json_encode($post_values, true);
+
+        $post_string = json_encode($post_values, true);
+
+        // Log the payload for the traditional receipt flow when WP_DEBUG is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Hesabe FORM POST_VALUES: ' . wp_json_encode($post_values));
+        }
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
         $post_fields = http_build_query([
             'data' => $encrypted_post_string
         ]);
-       
+
         $headers = [
             'accessCode: ' . $this->accessCode,
             'Accept: application/json',
@@ -465,14 +565,14 @@ class WC_Hesabe extends WC_Payment_Gateway
         $curl = curl_init($checkOutUrl);
 
         curl_setopt_array($curl, [
-                CURLOPT_HTTPHEADER => $headers,
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_CONNECTTIMEOUT => 12,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_POSTFIELDS => $post_fields,
-            ]);
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_CONNECTTIMEOUT => 12,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_POSTFIELDS => $post_fields,
+        ]);
         $post_response = curl_exec($curl);
         if (curl_errno($curl)) {
             $error_msg = curl_error($curl);
@@ -484,23 +584,143 @@ class WC_Hesabe extends WC_Payment_Gateway
         $decrypted_post_response = WC_Hesabe_Crypt::decrypt($post_response, $this->secretKey, $this->ivKey);
 
         $decode_response = json_decode($decrypted_post_response, true);
-		 if (!$decode_response || !isset($decode_response['status']) ||  !isset($decode_response['response']['data'])) {
-			
-			$errorCode = isset($decode_response->code) ? $decode_response->code : "Unknown";
-			$errorMessage = isset($decode_response->message) ? $decode_response->message : "No additional details available.";
-			$responseMessage = "We cannot complete the order at this moment. Please try again later or contact support. Error Code: " . $errorCode . " Details: " . $errorMessage;
-			$order->add_order_note('<br/> ' . $responseMessage);
-			echo $responseMessage;
-			exit;
-		}
+        if (!$decode_response || !isset($decode_response['status']) ||  !isset($decode_response['response']['data'])) {
+
+            $errorCode = isset($decode_response['code']) ? $decode_response['code'] : "Unknown";
+            $errorMessage = isset($decode_response['message']) ? $decode_response['message'] : "No additional details available.";
+            $responseMessage = "We cannot complete the order at this moment. Please try again later or contact support. Error Code: " . $errorCode . " Details: " . $errorMessage;
+            $order->add_order_note('<br/> ' . $responseMessage);
+            echo $responseMessage;
+            exit;
+        }
 
         $paymentData = $decode_response['response']['data'];
-		
-        header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
+
+        // Build and log the payment URL for debugging
+        $paymentUrl = $this->apiUrl . '/payment?data=' . $paymentData;
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Hesabe FORM DECRYPTED_RESPONSE: ' . wp_json_encode($decode_response));
+            error_log('Hesabe FORM PAYMENT_URL: ' . $paymentUrl);
+        }
+
+        wp_redirect( $paymentUrl );
         exit;
     }
 
-    private function utf8_substr($str, $start, $length) {
+    /**
+     * AJAX handler: create hesabe checkout and return payment URL
+     */
+    public function ajax_create_hesabe_payment()
+    {
+        // Verify nonce
+        if (empty($_REQUEST['nonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['nonce'])), 'wc_hesabe_blocks_nonce')) {
+            wp_send_json_error(array('message' => 'Invalid nonce'), 400);
+        }
+
+        $order_id = isset($_REQUEST['order_id']) ? intval($_REQUEST['order_id']) : 0;
+        $payment_type = isset($_REQUEST['payment_type']) ? sanitize_text_field(wp_unslash($_REQUEST['payment_type'])) : '';
+
+        if (! $order_id) {
+            wp_send_json_error(array('message' => 'Missing order id'), 400);
+        }
+
+        try {
+            if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
+                $order = new WC_Order($order_id);
+            } else {
+                $order = new woocommerce_order($order_id);
+            }
+
+            $order_data = $order->get_data();
+            $order_billing_first_name = $order_data['billing']['first_name'] ?? '';
+            $order_billing_last_name  = $order_data['billing']['last_name'] ?? '';
+            $order_billing_phone      = $order_data['billing']['phone'] ?? '';
+            $order_billing_email      = $order_data['billing']['email'] ?? '';
+            $orderAmount = number_format((float) $order->get_total(), 3, '.', '');
+
+            $name = htmlspecialchars($order_billing_first_name . " " . $order_billing_last_name, ENT_QUOTES, 'UTF-8');
+            $post_values = array(
+                "merchantCode" => $this->merchantCode,
+                "amount" => $orderAmount,
+                "responseUrl" => $this->notify_url,
+                "failureUrl" => $this->notify_url,
+                "paymentType" => $payment_type,
+                "version" => '2.0',
+                "orderReferenceNumber" => $order->get_id(),
+                "variable1" => $order_id,
+                "variable2" => $order_data['version'] ?? 0,
+                "variable4" => preg_replace('/[^0-9]/', '', $order_billing_phone),
+                "variable5" => $order_billing_email,
+                "mobile_number" => preg_replace('/[^0-9]/', '', $order_billing_phone),
+            );
+
+            $post_values['name'] = $this->utf8_substr($name, 0, 50);
+            $post_values['variable3'] = $this->utf8_substr($name, 0, 50);
+            $post_values['variable5'] = $this->utf8_substr($order_billing_email, 0, 100);
+
+            $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
+            if (preg_match($pattern, $order_billing_email)) {
+                $post_values['email'] = $order_billing_email;
+            }
+            if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
+                $post_values['currency'] = $order->get_currency();
+            }
+
+            $post_string = json_encode($post_values, true);
+            // Log the payload we will send to Hesabe for debugging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Hesabe POST_VALUES: ' . wp_json_encode($post_values));
+            }
+            $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
+
+            $post_fields = http_build_query(['data' => $encrypted_post_string]);
+            $headers = ['accessCode: ' . $this->accessCode, 'Accept: application/json'];
+            $checkOutUrl = $this->apiUrl . '/checkout';
+
+            $curl = curl_init($checkOutUrl);
+            curl_setopt_array($curl, [
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_CONNECTTIMEOUT => 12,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_POSTFIELDS => $post_fields,
+            ]);
+            $post_response = curl_exec($curl);
+            if (curl_errno($curl)) {
+                $error_msg = curl_error($curl);
+                curl_close($curl);
+                wp_send_json_error(array('message' => 'CURL Error: ' . $error_msg), 500);
+            }
+            curl_close($curl);
+            $decrypted_post_response = WC_Hesabe_Crypt::decrypt($post_response, $this->secretKey, $this->ivKey);
+            $decode_response = json_decode($decrypted_post_response, true);
+            if (! $decode_response || ! isset($decode_response['status']) || ! isset($decode_response['response']['data'])) {
+                wp_send_json_error(array('message' => 'Invalid response from Hesabe'), 500);
+            }
+            $paymentData = $decode_response['response']['data'];
+            $paymentUrl = $this->apiUrl . '/payment?data=' . $paymentData;
+
+            // Log the resolved payment URL for debugging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Hesabe PAYMENT_URL: ' . $paymentUrl);
+            }
+
+            // persist selected payment type on order and log result for debugging
+            $ajax_update_result = update_post_meta($order_id, '_hesabe_payment_type', $payment_type);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Hesabe AJAX update_post_meta order:' . $order_id . ' payment_type:' . $payment_type . ' result:' . var_export($ajax_update_result, true) . ' saved:' . get_post_meta($order_id, '_hesabe_payment_type', true));
+            }
+
+            wp_send_json_success(array('payment_url' => $paymentUrl));
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => $e->getMessage()), 500);
+        }
+    }
+
+    private function utf8_substr($str, $start, $length)
+    {
         if (function_exists('mb_substr')) {
             return mb_substr($str, $start, $length, 'UTF-8');
         } else {
@@ -509,4 +729,3 @@ class WC_Hesabe extends WC_Payment_Gateway
         }
     }
 }
-
