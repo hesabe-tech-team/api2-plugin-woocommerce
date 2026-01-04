@@ -101,10 +101,36 @@ class WC_Hesabe extends WC_Payment_Gateway
         // AJAX endpoint to create Hesabe checkout from frontend (blocks compatible)
         add_action('wp_ajax_nopriv_hesabe_create_payment', array($this, 'ajax_create_hesabe_payment'));
         add_action('wp_ajax_hesabe_create_payment', array($this, 'ajax_create_hesabe_payment'));
-
+        add_action('woocommerce_store_api_checkout_update_order_from_request', array( $this, 'store_api_save_payment_type' ), 10, 2);
         // Block scripts are registered via the Blocks integration class (WC_Hesabe_Blocks)
 
     }
+
+    public function store_api_save_payment_type( $order, $request ) {
+
+    // Only handle Hesabe
+    if ( empty( $request['payment_method'] ) || $request['payment_method'] !== 'hesabe' ) {
+        return;
+    }
+
+    if (
+        isset( $request['payment_data'] ) &&
+        isset( $request['payment_data']['hesabe_selected_payment_type'] )
+    ) {
+        $payment_type = sanitize_text_field(
+            $request['payment_data']['hesabe_selected_payment_type']
+        );
+
+        $order->update_meta_data( '_hesabe_payment_type', $payment_type );
+        $order->save();
+
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log(
+                '[HESABE BLOCKS] Store API saved payment type: ' . $payment_type
+            );
+        }
+    }
+}
 
     // Block scripts will be enqueued and data supplied by `WC_Hesabe_Blocks` via the Blocks API.
 
@@ -376,45 +402,24 @@ class WC_Hesabe extends WC_Payment_Gateway
     /**
      * Process the payment and return the result
      **/
-    function process_payment($orderId)
-    {
-        if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-            $order = new WC_Order($orderId);
-        } else {
-            $order = new woocommerce_order($orderId);
-        }
+    public function process_payment( $order_id ) {
 
-        // Capture the selected payment type from the submitted form
-        // Works for both traditional checkout and block checkout
-        $selected_payment_type = isset($_POST['hesabe_selected_payment_type'])
-            ? sanitize_text_field($_POST['hesabe_selected_payment_type'])
-            : 0;
+    $order = wc_get_order( $order_id );
 
-        // For block checkout, check if payment type is in the POST data
-        if (! $selected_payment_type && isset($_POST['payment_method_data'])) {
-            // Try to get from payment method data
-            $payment_data = json_decode(stripslashes($_POST['payment_method_data']), true);
-            if (is_array($payment_data) && isset($payment_data['hesabe_selected_payment_type'])) {
-                $selected_payment_type = sanitize_text_field($payment_data['hesabe_selected_payment_type']);
-            }
-        }
+    $selected_payment_type = $order->get_meta( '_hesabe_payment_type', true );
 
-        // Save the selected payment type to the order meta
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Hesabe PROCESS_PAYMENT _POST keys: ' . implode(',', array_keys($_POST)));
-            error_log('Hesabe PROCESS_PAYMENT selected_payment_type (before save): ' . var_export($selected_payment_type, true));
-        }
-        $update_result = update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Hesabe PROCESS_PAYMENT update_post_meta result: ' . var_export($update_result, true) . ' saved_value: ' . get_post_meta($orderId, '_hesabe_payment_type', true));
-        }
-
-        // Redirect to the WooCommerce `order-pay` endpoint
-        return array(
-            'result' => 'success',
-            'redirect' => $order->get_checkout_payment_url(true)
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+        error_log(
+            'Hesabe PROCESS_PAYMENT payment_type from order meta: ' .
+            var_export( $selected_payment_type, true )
         );
     }
+
+    return [
+        'result'   => 'success',
+        'redirect' => $order->get_checkout_payment_url( true ),
+    ];
+}
 
 
     /**
