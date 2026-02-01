@@ -299,24 +299,26 @@ class WC_Hesabe extends WC_Payment_Gateway
      * Process the payment and return the result
      **/
 
-    function process_payment($orderId)
-    {
-        if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
-            $order = new WC_Order($orderId);
-        } else {
-            $order = new woocommerce_order($orderId);
-        }
-
-        // Capture the selected payment type from the submitted form
-        $selected_payment_type = isset($_POST['hesabe_selected_payment_type']) ? sanitize_text_field($_POST['hesabe_selected_payment_type']) : 0;
-
-        // Save the selected payment type to the order meta
-        update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
-
-        return array('result' => 'success', 'redirect' => add_query_arg('order',
-            $order->id, add_query_arg('key', $order->order_key, $order->get_checkout_payment_url(true)))
-        );
+   function process_payment($orderId)
+{
+    if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
+        $order = new WC_Order($orderId);
+    } else {
+        $order = new woocommerce_order($orderId);
     }
+
+    // Capture the selected payment type from the submitted form
+    $selected_payment_type = isset($_POST['hesabe_selected_payment_type']) ? sanitize_text_field($_POST['hesabe_selected_payment_type']) : 0;
+
+    // Save the selected payment type to the order meta
+    update_post_meta($orderId, '_hesabe_payment_type', $selected_payment_type);
+
+    // Redirect to the WooCommerce `order-pay` endpoint
+    return array(
+        'result' => 'success',
+        'redirect' => $order->get_checkout_payment_url(true)
+    );
+}
 
 
     /**
@@ -413,7 +415,8 @@ class WC_Hesabe extends WC_Payment_Gateway
         $order_billing_last_name = $order_data['billing']['last_name']??"";
         $order_billing_phone = $order_data['billing']['phone']??"";
         $order_billing_email = $order_data['billing']['email']??"";
-        $orderAmount = number_format((float)$order->order_total, 3, '.', '');
+        $orderAmount = number_format((float)$order->get_total(), 3, '.', '');
+		$name = htmlspecialchars($order_billing_first_name . " " . $order_billing_last_name, ENT_QUOTES, 'UTF-8');
         $post_values = array(
             "merchantCode" => $this->merchantCode,
             "amount" => $orderAmount,
@@ -424,14 +427,19 @@ class WC_Hesabe extends WC_Payment_Gateway
             //"orderReferenceNumber" => $order_id,
             "orderReferenceNumber" => $order->get_id(),
             "variable1" => $order_id,
-            "variable2" => $order_version,
-            "variable3" => $order_billing_first_name." ".$order_billing_last_name,
+            "variable2" => $order_version,			
+            //"variable3" => $order_billing_first_name." ".$order_billing_last_name,
             "variable4" => preg_replace('/[^0-9]/', '', $order_billing_phone),
             "variable5" => $order_billing_email,
-            "name" => $order_billing_first_name." ".$order_billing_last_name,
+           // "name" => $order_billing_first_name." ".$order_billing_last_name,
             "mobile_number" => preg_replace('/[^0-9]/', '', $order_billing_phone)
         );
 
+		$post_values['name'] = $this->utf8_substr($name, 0, 50);
+
+		$post_values['variable3'] = $this->utf8_substr($name, 0, 50);
+		$post_values['variable5'] = $this->utf8_substr($order_billing_email, 0, 100);
+		
         $pattern = "(^[a-zA-Z0-9_.]+[@]{1}[a-z0-9]+[\.][a-z]+$)";
         if (preg_match($pattern, $order_data['billing']['email'])) {
             $post_values['email'] = $order_billing_email;
@@ -439,45 +447,66 @@ class WC_Hesabe extends WC_Payment_Gateway
         if ($this->currencyConvert && $order->get_currency() !== 'KWD') {
             $post_values['currency'] = $order->get_currency();
         }
-        $post_string = json_encode($post_values);
+		
+       $post_string = json_encode($post_values, true);
 
         $encrypted_post_string = WC_Hesabe_Crypt::encrypt($post_string, $this->secretKey, $this->ivKey);
 
-        $encrypted_post_string = 'data=' . $encrypted_post_string;
-
-        $header = array();
-        $header[] = 'accessCode: ' . $this->accessCode;
+        $post_fields = http_build_query([
+            'data' => $encrypted_post_string
+        ]);
+       
+        $headers = [
+            'accessCode: ' . $this->accessCode,
+            'Accept: application/json',
+        ];
         $checkOutUrl = $this->apiUrl . '/checkout';
 
         $curl = curl_init($checkOutUrl);
 
-        curl_setopt($curl, CURLOPT_HEADER, 1);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 1);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curl, CURLOPT_FORBID_REUSE, 1);
-        curl_setopt($curl, CURLOPT_FRESH_CONNECT, 1);
-        curl_setopt($curl, CURLOPT_POST, 1);
-        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 12);
-        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
+        curl_setopt_array($curl, [
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_CONNECTTIMEOUT => 12,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_POSTFIELDS => $post_fields,
+            ]);
         $post_response = curl_exec($curl);
-        curl_close($curl); // close curl object
-
-        list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
-
-        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($responsebody, $this->secretKey, $this->ivKey);
-
-        $decode_response = json_decode($decrypted_post_response);
-        if ($decode_response->status != 1 || !(isset($decode_response->response->data))) {
-            $responseMessage = "We can not complete order at this moment, Error Code: " . $decode_response->code . " Details : " . $decode_response->message;
-            $order->add_order_note('<br/> ' . $responseMessage);
-            echo $responseMessage;
-            exit;
+        if (curl_errno($curl)) {
+            $error_msg = curl_error($curl);
+            curl_close($curl);
+            // Handle CURL error
+            throw new Exception('CURL Error: ' . $error_msg);
         }
-        $paymentData = $decode_response->response->data;
+        curl_close($curl); // close curl object
+        $decrypted_post_response = WC_Hesabe_Crypt::decrypt($post_response, $this->secretKey, $this->ivKey);
+
+        $decode_response = json_decode($decrypted_post_response, true);
+		 if (!$decode_response || !isset($decode_response['status']) ||  !isset($decode_response['response']['data'])) {
+			
+			$errorCode = isset($decode_response->code) ? $decode_response->code : "Unknown";
+			$errorMessage = isset($decode_response->message) ? $decode_response->message : "No additional details available.";
+			$responseMessage = "We cannot complete the order at this moment. Please try again later or contact support. Error Code: " . $errorCode . " Details: " . $errorMessage;
+			$order->add_order_note('<br/> ' . $responseMessage);
+			echo $responseMessage;
+			exit;
+		}
+
+        $paymentData = $decode_response['response']['data'];
+		
         header('Location:' . $this->apiUrl . '/payment?data=' . $paymentData);
         exit;
+    }
+
+    private function utf8_substr($str, $start, $length) {
+        if (function_exists('mb_substr')) {
+            return mb_substr($str, $start, $length, 'UTF-8');
+        } else {
+            preg_match_all('/./u', $str, $matches);
+            return implode('', array_slice($matches[0], $start, $length));
+        }
     }
 }
 
