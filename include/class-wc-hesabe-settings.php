@@ -510,7 +510,7 @@ class WC_Hesabe extends WC_Payment_Gateway
         $order_data = $order->get_data();
         $order_version = $order_data['version'] ?? 0;
         // Retrieve the saved payment type from the order meta
-        $payment_type = get_post_meta($order_id, '_hesabe_payment_type', true);
+        $payment_type = "0";//get_post_meta($order_id, '_hesabe_payment_type', true);
         $order_billing_first_name = $order_data['billing']['first_name'] ?? "";
         $order_billing_last_name = $order_data['billing']['last_name'] ?? "";
         $order_billing_phone = $order_data['billing']['phone'] ?? "";
