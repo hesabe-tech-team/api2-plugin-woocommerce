@@ -508,9 +508,17 @@ class WC_Hesabe extends WC_Payment_Gateway
             $order = new woocommerce_order($order_id);
         }
         $order_data = $order->get_data();
+        // Log the payload for the traditional receipt flow when WP_DEBUG is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Hesabe Order Data : ' . wp_json_encode($order_data));
+        }
         $order_version = $order_data['version'] ?? 0;
         // Retrieve the saved payment type from the order meta
-        $payment_type = "0";//get_post_meta($order_id, '_hesabe_payment_type', true);
+        $payment_type = get_post_meta($order_id, '_hesabe_payment_type', true);
+
+        if (empty($payment_type)) {
+            $payment_type = "0";
+        }
         $order_billing_first_name = $order_data['billing']['first_name'] ?? "";
         $order_billing_last_name = $order_data['billing']['last_name'] ?? "";
         $order_billing_phone = $order_data['billing']['phone'] ?? "";

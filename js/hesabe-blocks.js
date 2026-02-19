@@ -12,7 +12,7 @@
 
     const settings = window.wcHesabeBlocksData?.hesabe_data || {};
     const paymentMethods = settings.paymentMethods || [];
-
+console.log('Hesabe Payment Methods:', paymentMethods);
     let selectedPaymentType = paymentMethods[0]?.id || '0';
 
     const Content = () => {
@@ -21,20 +21,42 @@
         const onChange = (id) => {
             selectedPaymentType = id;
             setSelected(id);
+            const hidden = document.getElementById('hesabe_selected_payment_type');
+            if (hidden) {
+                hidden.value = method.id;
+            }
+
         };
 
         return el(
             'div',
             null,
+            // Hidden field to store selected payment
+            el('input', {
+                type: 'hidden',
+                id: 'hesabe_selected_payment_type',
+                name: 'hesabe_selected_payment_type',
+                value: selected || '0', // default to "0" if nothing selected
+            }),
+            // Render radio buttons
             paymentMethods.map((method) =>
                 el(
                     'label',
                     { key: method.id, style: { display: 'block' } },
                     el('input', {
                         type: 'radio',
+                        name: 'payment_option', // important for radio group
                         value: method.id,
                         checked: selected === method.id,
-                        onChange: () => onChange(method.id),
+                        onChange: () => {
+                            // Update selected state in React
+                            onChange(method.id);
+                            // Update hidden input value to submit with form
+                            const hidden = document.getElementById('hesabe_selected_payment_type');
+                            if (hidden) {
+                                hidden.value = method.id;
+                            }
+                        },
                     }),
                     ' ',
                     method.name
