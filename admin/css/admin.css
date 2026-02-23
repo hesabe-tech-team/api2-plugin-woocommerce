@@ -1,0 +1,138 @@
+/**
+ * Hesabe WooCommerce Admin Styles
+ * 
+ * Styles for the admin settings page
+ */
+
+/* Environment Section Styling */
+.hesabe-environment-section {
+    background: #f9f9f9;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 15px 0;
+}
+
+/* Environment Indicator */
+.hesabe-environment-indicator {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.hesabe-environment-indicator.staging {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+}
+
+.hesabe-environment-indicator.live {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #28a745;
+}
+
+/* Staging Credentials Section */
+.hesabe-staging-credentials {
+    display: block;
+}
+
+.hesabe-live-credentials {
+    display: block;
+}
+
+/* Hide/show based on environment mode */
+body.hesabe-staging-mode .hesabe-live-credentials {
+    display: none;
+}
+
+body.hesabe-live-mode .hesabe-staging-credentials {
+    display: none;
+}
+
+/* Custom Staging Credentials - hidden by default when using defaults */
+.hesabe-custom-staging-credentials {
+    display: none;
+}
+
+body.hesabe-custom-staging-enabled .hesabe-custom-staging-credentials {
+    display: block;
+}
+
+/* Direct Payment Toggle Section */
+.direct-toggle {
+    display: none;
+}
+
+body.hesabe-direct-enabled .direct-toggle {
+    display: block;
+}
+
+/* Form Field Styling */
+.form-table th.hesabe-staging-credentials,
+.form-table td.hesabe-staging-credentials {
+    background: #fff9e6;
+}
+
+.form-table th.hesabe-live-credentials,
+.form-table td.hesabe-live-credentials {
+    background: #e6f7ff;
+}
+
+/* Help Text */
+.hesabe-help-text {
+    color: #666;
+    font-style: italic;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Warning Messages */
+.hesabe-warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px;
+    margin: 15px 0;
+}
+
+.hesabe-warning strong {
+    color: #856404;
+}
+
+/* Success Messages */
+.hesabe-success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 12px;
+    margin: 15px 0;
+}
+
+.hesabe-success strong {
+    color: #155724;
+}
+
+/* Environment Toggle Radio Buttons */
+.form-table input[type="radio"].hesabe-environment-toggle {
+    margin-right: 5px;
+}
+
+/* Section Titles */
+.form-table .hesabe-section-title {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 15px 0 5px 0;
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 15px;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .hesabe-environment-indicator {
+        display: block;
+        margin-bottom: 15px;
+    }
+}
+
