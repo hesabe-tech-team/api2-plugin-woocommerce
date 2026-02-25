@@ -63,6 +63,33 @@ A complete WordPress WooCommerce payment gateway plugin for Hesabe payment proce
 - Payment method selection happens on Hesabe payment page
 - Payment Type is set to `0` (Indirect)
 
+## Apple Pay activation (direct Wallet on Safari)
+
+Apple Pay on the web can only be triggered from **Safari** (and only on devices/accounts that have Apple Pay set up). This plugin will automatically **hide Apple Pay options on non‑Safari browsers**.
+
+### Checklist
+
+1. **Enable Apple Pay in your Hesabe account**
+   - Ensure Apple Pay is enabled for your merchant account on Hesabe (contact Hesabe support if needed).
+
+2. **Enable Apple Pay in WooCommerce settings**
+   - Go to **WooCommerce → Settings → Payments → Hesabe Payment Gateway → Manage**
+   - Enable **Direct Payment Method**
+   - Enable:
+     - **Apple Pay** (Payment Type `9`)
+     - **Apple Pay (KNET)** (Payment Type `11`)
+
+3. **Verify your domain with Apple (required for Apple Pay on Web)**
+   - Host the Apple verification file at your site root (not inside the plugin):
+     - **Path**: `/.well-known/apple-developer-merchantid-domain-association`
+     - **Must be**: HTTPS, publicly accessible, **no redirects**, returns **200 OK**
+   - Get the exact verification file from your Apple Developer account (Apple Pay on the Web domain verification).
+
+4. **Test**
+   - Use **Safari** on macOS/iOS with an Apple Pay capable device/account.
+   - On Safari, selecting Apple Pay should trigger the **Wallet** flow on the receipt page.
+   - On Chrome/Firefox/Edge, Apple Pay options will not be shown.
+
 ### Individual Payment Methods
 
 When Direct Payment is enabled, you can individually enable/disable:

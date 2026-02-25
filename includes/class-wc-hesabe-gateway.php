@@ -125,6 +125,7 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
         // Hooks
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_wc_hesabe', array($this, 'check_hesabe_response'));
+        add_action('woocommerce_api_wc_hesabe_applepay', array($this, 'proxy_applepay_script'));
         add_action('woocommerce_receipt_hesabe', array($this, 'receipt_page'));
         add_action('admin_enqueue_scripts', array($this, 'admin_scripts'));
         add_action('admin_enqueue_scripts', array($this, 'admin_styles'));
@@ -461,6 +462,9 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
      * Render payment method selection
      */
     private function render_payment_method_selection() {
+        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? (string) $_SERVER['HTTP_USER_AGENT'] : '';
+        $is_safari = $this->is_safari_user_agent($ua);
+
         // Get enabled payment methods
         $enabled_methods = array();
         
@@ -565,10 +569,19 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
 
         foreach ($enabled_methods as $method) {
             $class = '';
+            $type = isset($method['type']) ? (string) $method['type'] : '';
+            $is_apple_pay = in_array($type, array('9', '11'), true);
+            if ($is_apple_pay) {
+                $class .= ' hesabe-applepay-option';
+                // Hide Apple Pay options on non-Safari browsers (Safari can still be filtered client-side).
+                if (!$is_safari) {
+                    $class .= ' hidden';
+                }
+            }
 
             $img_src = HESABE_WC_PLUGIN_URL . 'assets/images/' . $method['image'];
 
-            echo '<div class="hesabe-payment-option ' . esc_attr($class) . '">';
+            echo '<div class="hesabe-payment-option ' . esc_attr(trim($class)) . '" data-hesabe-type="' . esc_attr($type) . '">';
             echo '<label>';
             echo '<input type="radio" name="hesabe_payment_option" value="' . esc_attr($method['type']) . '" required />';
             echo '<img src="' . esc_url($img_src) . '" alt="' . esc_attr($method['label']) . '" />';
@@ -590,10 +603,36 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
                     var $paymentOptions = $("input[name=\'hesabe_payment_option\']");
                     var $selectedField = $("#hesabe_selected_payment_type");
                     var $errorMsg = $("#hesabe_payment_error");
+
+                    function canMakeApplePay() {
+                        try {
+                            return !!(window.ApplePaySession &&
+                                typeof window.ApplePaySession.canMakePayments === "function" &&
+                                window.ApplePaySession.canMakePayments());
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+
+                    function applyApplePayVisibility() {
+                        var supportsApplePay = canMakeApplePay();
+                        if (!supportsApplePay) {
+                            $(".hesabe-applepay-option").addClass("hidden");
+
+                            // If Apple Pay was selected, clear selection.
+                            var current = $selectedField.val();
+                            if (current === "9" || current === "11") {
+                                $paymentOptions.filter("[value=\'9\'],[value=\'11\']").prop("checked", false);
+                                $selectedField.val("0");
+                                $(".hesabe-payment-option").removeClass("selected");
+                            }
+                        }
+                    }
                     
                     // Initialize
                     $paymentOptions.prop("checked", false);
                     $selectedField.val("0");
+                    applyApplePayVisibility();
                     
                     // Handle selection change
                     $paymentOptions.on("change", function() {
@@ -697,7 +736,7 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
      * Receipt page
      */
     public function receipt_page($order_id) {
-        echo '<p>' . esc_html__('Thank you for your order. Please click the button below to proceed with payment.', 'hesabe-woocommerce') . '</p>';
+        // Important: do not output content before a redirect, otherwise headers may be sent.
         echo $this->generate_hesabe_form($order_id);
     }
 
@@ -834,14 +873,13 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
         }
 
         $payment_data = $decode_response['response']['data'];
-        
-        // Handle Apple Pay wallet flow ONLY on Safari.
-        // On non-Safari browsers, Hesabe landing page will show QR/barcode flow.
+
+        // Apple Pay direct wallet flow (Safari only): render Apple Pay UI and load Hesabe /applepay script.
+        // On other browsers, continue with normal redirect to Hesabe landing page.
         if (in_array($payment_type, array('9', '11'), true)) {
             $ua = isset($_SERVER['HTTP_USER_AGENT']) ? (string) $_SERVER['HTTP_USER_AGENT'] : '';
-            $is_safari = (strpos($ua, 'Safari') !== false && strpos($ua, 'Chrome') === false && strpos($ua, 'Chromium') === false);
-            if ($is_safari) {
-                $this->handle_apple_pay($payment_data, $order);
+            if ($this->is_safari_user_agent($ua)) {
+                return $this->render_apple_pay_receipt($payment_data);
             }
         }
 
@@ -851,24 +889,147 @@ class WC_Hesabe_Gateway extends WC_Payment_Gateway {
     }
 
     /**
-     * Handle Apple Pay
+     * Basic Safari detection (best-effort).
+     *
+     * @param string $ua
+     * @return bool
      */
-    private function handle_apple_pay($payment_data, $order) {
-        echo '<script type="text/javascript">
-            jQuery(function($) {
-                var applePayScript = document.createElement("script");
-                applePayScript.src = "https://applepay.cdn-apple.com/jsapi/v1/apple-pay-sdk.js";
-                document.body.appendChild(applePayScript);
-                
-                $.get("' . esc_js($this->api_url) . '/applepay?data=' . esc_js($payment_data) . '", function(response) {
-                    var scriptContent = response.replace(/<\/?script>/g, "");
-                    var inlineScript = document.createElement("script");
-                    inlineScript.type = "text/javascript";
-                    inlineScript.text = scriptContent;
-                    document.body.appendChild(inlineScript);
-                });
-            });
+    private function is_safari_user_agent($ua) {
+        $ua = (string) $ua;
+        return (strpos($ua, 'Safari') !== false && strpos($ua, 'Chrome') === false && strpos($ua, 'Chromium') === false);
+    }
+
+    /**
+     * Render Apple Pay receipt UI and load Hesabe Apple Pay script.
+     */
+    private function render_apple_pay_receipt($payment_data) {
+        $fallback_url = $this->api_url . '/payment?data=' . urlencode($payment_data);
+        $proxy_url = home_url('/wc-api/wc_hesabe_applepay');
+
+        $html  = '<div class="hesabe-applepay-receipt">';
+        $html .= '<p><strong>' . esc_html__('Apple Pay', 'hesabe-woocommerce') . '</strong></p>';
+        $html .= '<p>' . esc_html__('If Apple Pay is available on this device, click the Apple Pay button to continue in Wallet.', 'hesabe-woocommerce') . '</p>';
+        $html .= '<p id="hesabe-applepay-unavailable" style="display:none;color:#d63638;">' . esc_html__('Apple Pay is not available in this browser/device. Please continue with the standard payment page.', 'hesabe-woocommerce') . '</p>';
+        $html .= '<p id="hesabe-applepay-load-error" style="display:none;color:#d63638;">' . esc_html__('Could not load Apple Pay integration. Please continue with the standard payment page.', 'hesabe-woocommerce') . '</p>';
+
+        // Button id matches legacy Hesabe /applepay script expectations (older integration binds to #applePayment).
+        $html .= '<button type="button" class="applePaybtn" id="applePayment" style="display:inline-flex;align-items:center;justify-content:center;background:#000;color:#fff;border:0;border-radius:6px;padding:12px 18px;font-size:16px;cursor:pointer;min-width:200px;">';
+        $html .= esc_html__('Pay with Apple Pay', 'hesabe-woocommerce');
+        $html .= '</button>';
+
+        $html .= '<p style="margin-top:12px;"><a href="' . esc_url($fallback_url) . '">' . esc_html__('Continue to Hesabe payment page', 'hesabe-woocommerce') . '</a></p>';
+        $html .= '</div>';
+
+        $html .= '<script type="text/javascript">
+            (function() {
+                var fallbackUrl = ' . json_encode($fallback_url) . ';
+                var proxyBase = ' . json_encode($proxy_url) . ';
+                var paymentData = ' . json_encode((string) $payment_data) . ';
+                function canMakeApplePay() {
+                    try {
+                        return !!(window.ApplePaySession &&
+                            typeof window.ApplePaySession.canMakePayments === "function" &&
+                            window.ApplePaySession.canMakePayments());
+                    } catch (e) {
+                        return false;
+                    }
+                }
+
+                var btn = document.getElementById("applePayment");
+                var unavailable = document.getElementById("hesabe-applepay-unavailable");
+                var loadError = document.getElementById("hesabe-applepay-load-error");
+                if (!canMakeApplePay()) {
+                    if (btn) btn.style.display = "none";
+                    if (unavailable) unavailable.style.display = "block";
+                    return;
+                }
+
+                // Load Apple Pay SDK.
+                var sdk = document.createElement("script");
+                sdk.src = "https://applepay.cdn-apple.com/jsapi/v1/apple-pay-sdk.js";
+                sdk.async = true;
+                document.head.appendChild(sdk);
+
+                // Fetch the Hesabe Apple Pay integration script via same-origin proxy and inject it.
+                // This avoids cross-domain/CORS issues when requesting Hesabe endpoints from the browser.
+                var url = proxyBase + (proxyBase.indexOf("?") >= 0 ? "&" : "?") + "data=" + encodeURIComponent(paymentData);
+                function inject(text) {
+                    try {
+                        var scriptContent = String(text).replace(/<\\/?script>/gi, "");
+                        var inlineScript = document.createElement("script");
+                        inlineScript.type = "text/javascript";
+                        inlineScript.text = scriptContent;
+                        document.body.appendChild(inlineScript);
+                    } catch (e) {
+                        // If anything goes wrong, allow user to continue on standard page.
+                        // No automatic redirect; the link is shown above.
+                        if (loadError) loadError.style.display = "block";
+                    }
+                }
+
+                if (window.jQuery && window.jQuery.get) {
+                    window.jQuery.get(url, function(resp) { inject(resp); }).fail(function() {
+                        if (loadError) loadError.style.display = "block";
+                    });
+                } else if (window.fetch) {
+                    fetch(url, { method: "GET", credentials: "omit" })
+                        .then(function(r) { return r.text(); })
+                        .then(function(t) { inject(t); })
+                        .catch(function() { if (loadError) loadError.style.display = "block"; });
+                } else {
+                    if (loadError) loadError.style.display = "block";
+                }
+            })();
         </script>';
+
+        return $html;
+    }
+
+    /**
+     * Proxy Hesabe Apple Pay script through this domain (avoid CORS/XHR issues).
+     *
+     * Endpoint: /wc-api/wc_hesabe_applepay?data=...
+     *
+     * @return void
+     */
+    public function proxy_applepay_script() {
+        $data = isset($_GET['data']) ? wp_unslash($_GET['data']) : '';
+        $data = is_string($data) ? $data : '';
+
+        nocache_headers();
+        header('Content-Type: application/javascript; charset=UTF-8');
+
+        if ($data === '') {
+            status_header(400);
+            echo 'console.error("Hesabe Apple Pay proxy: missing data parameter");';
+            exit;
+        }
+
+        $url = $this->api_url . '/applepay?data=' . rawurlencode($data);
+        $response = wp_remote_get($url, array(
+            'timeout' => 20,
+            'redirection' => 0,
+        ));
+
+        if (is_wp_error($response)) {
+            status_header(502);
+            echo 'console.error("Hesabe Apple Pay proxy error: ' . esc_js($response->get_error_message()) . '");';
+            exit;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        $body = (string) wp_remote_retrieve_body($response);
+
+        if ($code < 200 || $code >= 300 || $body === '') {
+            status_header(502);
+            echo 'console.error("Hesabe Apple Pay proxy bad response: HTTP ' . esc_js((string) $code) . '");';
+            exit;
+        }
+
+        // Hesabe may wrap the returned JS with <script> tags; strip them.
+        $body = preg_replace('~</?script[^>]*>~i', '', $body);
+        echo $body;
+        exit;
     }
 
     /**

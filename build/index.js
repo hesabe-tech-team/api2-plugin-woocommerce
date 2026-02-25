@@ -37,6 +37,18 @@
 		return ua.includes( 'Safari' ) && !ua.includes( 'Chrome' ) && !ua.includes( 'Chromium' );
 	};
 
+	const canMakeApplePay = () => {
+		try {
+			return !!(
+				window.ApplePaySession &&
+				typeof window.ApplePaySession.canMakePayments === 'function' &&
+				window.ApplePaySession.canMakePayments()
+			);
+		} catch ( e ) {
+			return false;
+		}
+	};
+
 	const Content = ( props ) => {
 		const payOnHesabe = !! settings.pay_on_hesabe;
 		const direct = ! payOnHesabe;
@@ -45,7 +57,25 @@
 		const [ selected, setSelected ] = useState( '0' );
 		const [ error, setError ] = useState( '' );
 
-		const availableMethods = useMemo( () => methods, [ methods ] );
+		const applePayAvailable = useMemo(
+			() => isSafari() && canMakeApplePay(),
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+			[]
+		);
+
+		const availableMethods = useMemo( () => {
+			if ( applePayAvailable ) {
+				return methods;
+			}
+			return methods.filter( ( m ) => String( m.id ) !== '9' && String( m.id ) !== '11' );
+		}, [ methods, applePayAvailable ] );
+
+		useEffect( () => {
+			if ( ! applePayAvailable && ( selected === '9' || selected === '11' ) ) {
+				setSelected( '0' );
+				setError( __( 'Apple Pay is not available in this browser/device.', 'hesabe-woocommerce' ) );
+			}
+		}, [ applePayAvailable, selected ] );
 
 		// Wire paymentMethodData into checkout submission (like MyFatoorah)
 		useEffect( () => {
